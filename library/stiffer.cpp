@@ -44,26 +44,6 @@ const char* field_type_to_string(field_type value)
     return "unrecognized";
 }
 
-std::size_t field_type_to_bytesize(field_type value)
-{
-    switch (value) {
-    case byte_field_type: return 1u;
-    case ascii_field_type: return 1u;
-    case short_field_type: return 2u;
-    case long_field_type: return 4u;
-    case rational_field_type: return 8u;
-    case sbyte_field_type: return 1u;
-    case undefined_field_type: return 1u;
-    case sshort_field_type: return 2u;
-    case slong_field_type: return 4u;
-    case srational_field_type: return 8u;
-    case float_field_type: return 4u;
-    case double_type: return 8u;
-    default: break;
-    }
-    return 1u;
-}
-
 void add_defaults(field_value_map& map, const field_definition_map& definitions)
 {
     for (auto&& def: definitions) {
@@ -145,7 +125,7 @@ std::enable_if_t<std::is_trivially_copyable_v<T>, T> read(std::istream& in, endi
     auto element = T{};
     in.read(reinterpret_cast<char*>(&element), sizeof(element));
     if (!in.good()) {
-        throw std::runtime_error("can't read element");
+        throw std::runtime_error("can't read data");
     }
     return from_endian(element, from_order);
 }
@@ -163,7 +143,7 @@ T read(std::istream& in, endian from_order, std::size_t count)
         }
         catch (const std::runtime_error& ex) {
             throw std::runtime_error(std::string(ex.what()) +
-                                     std::string(" number ") + std::to_string(i));
+                                     std::string(" for element number ") + std::to_string(i));
         }
         elements.push_back(element);
     }
@@ -192,24 +172,9 @@ std::enable_if_t<std::is_unsigned_v<U>, T> get(U in, std::size_t count)
 
 namespace classic {
 
-constexpr auto get_file_type_magic(endian value)
-{
-    // 42 or 0x2a in the specified byte order...
-    switch (value) {
-    case endian::little: return to_little_endian(classic_version_number);
-    case endian::big: break;
-    }
-    return to_big_endian(classic_version_number);
-}
+namespace {
 
 #pragma pack(push, 1)
-
-struct file_header {
-    std::uint16_t byte_order;
-    std::uint16_t version_number;
-    std::uint32_t first_image;
-};
-static_assert(sizeof(file_header) == 8u, "file_header size must be 8 bytes");
 
 struct field_entry {
     std::uint16_t tag;
@@ -238,31 +203,59 @@ bool is_value_field(const field_entry& field)
     return field_type_to_bytesize(field.type) <= sizeof(field_entry::value_offset) && field.count <= 1u;
 }
 
-file_header get_file_header(std::istream& is)
+bool seek_less_than(const field_entry& lhs, const field_entry& rhs)
 {
-    auto header = file_header{};
-    is.seekg(0);
-    if (!is.good()) {
-        throw std::runtime_error("can't seek to position 0");
+    if (is_value_field(lhs) && is_value_field(rhs)) {
+        return &lhs < &rhs;
     }
-    is.read(static_cast<char*>(static_cast<void*>(&header)), sizeof(header));
-    if (!is.good()) {
-        throw std::runtime_error("can't read header");
+    if (is_value_field(lhs)) {
+        return true;
     }
-    return header;
+    if (is_value_field(rhs)) {
+        return false;
+    }
+    return lhs.value_offset < rhs.value_offset;
 }
 
-file_context get_file_context(const file_header& header)
+field_value get_field_value(std::istream& in, const field_entry& field, endian byte_order)
 {
-    const auto endian_found = find_endian(header.byte_order);
-    if (!endian_found) {
-        throw std::invalid_argument("unrecognized byte order");
+    if (!is_value_field(field)) {
+        in.seekg(field.value_offset);
     }
-    if (from_endian(header.version_number, *endian_found) != classic_version_number) {
-        throw std::invalid_argument("invalid magic");
+    switch (field.type) {
+    case byte_field_type:
+        return is_value_field(field)?
+        get<byte_array>(field.value_offset, field.count):
+        read<byte_array>(in, byte_order, field.count);
+    case ascii_field_type:
+        return is_value_field(field)?
+        get<ascii_array>(field.value_offset, field.count):
+        read<ascii_array>(in, byte_order, field.count);
+    case short_field_type:
+        return is_value_field(field)?
+        get<short_array>(field.value_offset, field.count):
+        read<short_array>(in, byte_order, field.count);
+    case long_field_type:
+        return is_value_field(field)?
+        get<long_array>(field.value_offset, field.count):
+        read<long_array>(in, byte_order, field.count);
+    case sbyte_field_type:
+        return is_value_field(field)?
+        get<sbyte_array>(field.value_offset, field.count):
+        read<sbyte_array>(in, byte_order, field.count);
+    case undefined_field_type:
+        return is_value_field(field)?
+        get<undefined_array>(field.value_offset, field.count):
+        read<undefined_array>(in, byte_order, field.count);
+    case rational_field_type:
+        return read<rational_array>(in, byte_order, field.count);
+    case srational_field_type:
+        return read<srational_array>(in, byte_order, field.count);
     }
-    return file_context{from_endian(header.first_image, *endian_found), *endian_found};
+    return {};
 }
+
+} // namespace
 
 image_file_directory get_image_file_directory(std::istream& in, std::size_t at, endian byte_order)
 {
@@ -271,80 +264,124 @@ image_file_directory get_image_file_directory(std::istream& in, std::size_t at, 
     if (!in.good()) {
         throw std::runtime_error("can't seek to given offet");
     }
-    std::uint16_t num_fields;
-    in.read(static_cast<char*>(static_cast<void*>(&num_fields)), sizeof(num_fields));
-    if (!in.good()) {
-        throw std::runtime_error("can't read number of fields of first image");
-    }
-    num_fields = from_endian(num_fields, byte_order);
+    const auto num_fields = read<std::uint16_t>(in, byte_order);
     auto fields = read<field_entries>(in, byte_order, num_fields);
-    auto next_ifd_offset = std::uint32_t{};
-    in.read(reinterpret_cast<char*>(&next_ifd_offset), sizeof(next_ifd_offset));
-    if (!in.good()) {
-        throw std::runtime_error("can't read next IFD offset");
-    }
-    next_ifd_offset = from_endian(next_ifd_offset, byte_order);
-    std::sort(fields.begin(), fields.end(), [](const field_entry& a, const field_entry& b){
-        if (is_value_field(a) && is_value_field(b)) {
-            return &a < &b;
-        }
-        if (is_value_field(a)) {
-            return true;
-        }
-        if (is_value_field(b)) {
-            return false;
-        }
-        return a.value_offset < b.value_offset;
-    });
+    const auto next_ifd_offset = read<std::uint32_t>(in, byte_order);
+    std::sort(fields.begin(), fields.end(), seek_less_than);
     for (auto&& field: fields) {
-        field_value value;
-        if (!is_value_field(field)) {
-            in.seekg(field.value_offset);
-        }
-        switch (field.type) {
-        case byte_field_type:
-            value = is_value_field(field)?
-            get<byte_array>(field.value_offset, field.count):
-            read<byte_array>(in, byte_order, field.count);
-            break;
-        case ascii_field_type:
-            value = is_value_field(field)?
-            get<ascii_array>(field.value_offset, field.count):
-            read<ascii_array>(in, byte_order, field.count);
-            break;
-        case short_field_type:
-            value = is_value_field(field)?
-            get<short_array>(field.value_offset, field.count):
-            read<short_array>(in, byte_order, field.count);
-            break;
-        case long_field_type:
-            value = is_value_field(field)?
-            get<long_array>(field.value_offset, field.count):
-            read<long_array>(in, byte_order, field.count);
-            break;
-        case sbyte_field_type:
-            value = is_value_field(field)?
-            get<sbyte_array>(field.value_offset, field.count):
-            read<sbyte_array>(in, byte_order, field.count);
-            break;
-        case undefined_field_type:
-            value = is_value_field(field)?
-            get<undefined_array>(field.value_offset, field.count):
-            read<undefined_array>(in, byte_order, field.count);
-            break;
-        case rational_field_type:
-            value = read<rational_array>(in, byte_order, field.count);
-            break;
-        case srational_field_type:
-            value = read<srational_array>(in, byte_order, field.count);
-            break;
-        }
-        field_map[field.tag] = value;
+        field_map[field.tag] = get_field_value(in, field, byte_order);
     }
     return image_file_directory{field_map, next_ifd_offset};
 }
 
 } // namespace classic
+
+namespace bigtiff {
+
+namespace {
+
+#pragma pack(push, 1)
+
+struct field_entry {
+    std::uint16_t tag;
+    std::uint16_t type;
+    std::uint64_t count; /// Count of the indicated type.
+    std::uint64_t value_offset; /// Offset in bytes to the first value.
+};
+static_assert(sizeof(field_entry) == 20u, "field_entry size must be 12 bytes");
+
+#pragma pack(pop)
+
+using field_entries = std::vector<field_entry>;
+
+inline field_entry byte_swap(const field_entry& value)
+{
+    return field_entry{
+        ::stiffer::byte_swap(value.tag),
+        ::stiffer::byte_swap(value.type),
+        ::stiffer::byte_swap(value.count),
+        ::stiffer::byte_swap(value.value_offset)
+    };
+}
+
+bool is_value_field(const field_entry& field)
+{
+    return field_type_to_bytesize(field.type) <= sizeof(field_entry::value_offset) && field.count <= 1u;
+}
+
+bool seek_less_than(const field_entry& lhs, const field_entry& rhs)
+{
+    if (is_value_field(lhs) && is_value_field(rhs)) {
+        return &lhs < &rhs;
+    }
+    if (is_value_field(lhs)) {
+        return true;
+    }
+    if (is_value_field(rhs)) {
+        return false;
+    }
+    return lhs.value_offset < rhs.value_offset;
+}
+
+field_value get_field_value(std::istream& in, const field_entry& field, endian byte_order)
+{
+    if (!is_value_field(field)) {
+        in.seekg(field.value_offset);
+    }
+    switch (field.type) {
+    case byte_field_type:
+        return is_value_field(field)?
+        get<byte_array>(field.value_offset, field.count):
+        read<byte_array>(in, byte_order, field.count);
+    case ascii_field_type:
+        return is_value_field(field)?
+        get<ascii_array>(field.value_offset, field.count):
+        read<ascii_array>(in, byte_order, field.count);
+    case short_field_type:
+        return is_value_field(field)?
+        get<short_array>(field.value_offset, field.count):
+        read<short_array>(in, byte_order, field.count);
+    case long_field_type:
+        return is_value_field(field)?
+        get<long_array>(field.value_offset, field.count):
+        read<long_array>(in, byte_order, field.count);
+    case sbyte_field_type:
+        return is_value_field(field)?
+        get<sbyte_array>(field.value_offset, field.count):
+        read<sbyte_array>(in, byte_order, field.count);
+    case undefined_field_type:
+        return is_value_field(field)?
+        get<undefined_array>(field.value_offset, field.count):
+        read<undefined_array>(in, byte_order, field.count);
+    case rational_field_type:
+        return read<rational_array>(in, byte_order, field.count);
+    case srational_field_type:
+        return read<srational_array>(in, byte_order, field.count);
+    }
+    return {};
+}
+
+} // namespace
+
+image_file_directory get_image_file_directory(std::istream& in, std::size_t at, endian byte_order)
+{
+    field_value_map field_map;
+    in.seekg(at);
+    if (!in.good()) {
+        throw std::runtime_error("can't seek to given offet");
+    }
+    const auto num_fields = read<std::uint64_t>(in, byte_order);
+    auto fields = read<field_entries>(in, byte_order, num_fields);
+    const auto next_ifd_offset = read<std::uint64_t>(in, byte_order);
+    std::sort(fields.begin(), fields.end(), seek_less_than);
+    for (auto&& field: fields) {
+        field_map[field.tag] = get_field_value(in, field, byte_order);
+    }
+    return image_file_directory{field_map, next_ifd_offset};
+}
+
+} // namespace bigtiff
+
 } // namespace stiffer
 
 namespace stiffer::v6 {

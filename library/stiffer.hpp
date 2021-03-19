@@ -130,7 +130,26 @@ constexpr std::size_t size(const field_value& value)
 }
 
 const char* field_type_to_string(field_type value);
-std::size_t field_type_to_bytesize(field_type value);
+
+constexpr std::size_t field_type_to_bytesize(field_type value)
+{
+    switch (value) {
+    case byte_field_type: return 1u;
+    case ascii_field_type: return 1u;
+    case short_field_type: return 2u;
+    case long_field_type: return 4u;
+    case rational_field_type: return 8u;
+    case sbyte_field_type: return 1u;
+    case undefined_field_type: return 1u;
+    case sshort_field_type: return 2u;
+    case slong_field_type: return 4u;
+    case srational_field_type: return 8u;
+    case float_field_type: return 4u;
+    case double_type: return 8u;
+    default: break;
+    }
+    return 1u;
+}
 
 inline undefined_element byte_swap(undefined_element value)
 {
@@ -241,6 +260,12 @@ namespace stiffer::classic {
 image_file_directory get_image_file_directory(std::istream& is, std::size_t at, endian byte_order);
 
 } // stiffer::classic
+
+namespace stiffer::bigtiff {
+
+image_file_directory get_image_file_directory(std::istream& in, std::size_t at, endian byte_order);
+
+} // stiffer::bigtiff
 
 namespace stiffer::v6 {
 
