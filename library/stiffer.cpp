@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <exception>
 #include <ios>
+#include <optional>
 
 #include "stiffer.hpp"
 
@@ -19,8 +20,28 @@ namespace stiffer {
 
 namespace {
 
+constexpr auto little_endian_key = std::uint16_t{0x4949u};
+constexpr auto big_endian_key = std::uint16_t{0x4D4Du};
 constexpr auto classic_version_number = std::uint16_t{42};
 constexpr auto bigtiff_version_number = std::uint16_t{43};
+
+constexpr std::optional<endian> find_endian(std::uint16_t byte_order)
+{
+    switch (byte_order) {
+    case little_endian_key: return {endian::little};
+    case big_endian_key: return {endian::big};
+    }
+    return {};
+}
+
+file_version to_file_version(std::uint16_t number)
+{
+    switch (number) {
+    case classic_version_number: return file_version::classic;
+    case bigtiff_version_number: return file_version::bigtiff;
+    }
+    throw std::invalid_argument("unrecognized version number");
+}
 
 } // namespace
 
@@ -47,21 +68,12 @@ const char* field_type_to_string(field_type value)
 void add_defaults(field_value_map& map, const field_definition_map& definitions)
 {
     for (auto&& def: definitions) {
-        if (def.second.default_fn) {
+        if (def.second.defaulter) {
             if (const auto it = map.find(def.first); it == map.end()) {
-                map.insert({def.first, def.second.default_fn(map)});
+                map.insert({def.first, def.second.defaulter(map)});
             }
         }
     }
-}
-
-file_version to_file_version(std::uint16_t number)
-{
-    switch (number) {
-    case classic_version_number: return file_version::classic;
-    case bigtiff_version_number: return file_version::bigtiff;
-    }
-    throw std::invalid_argument("unrecognized version number");
 }
 
 file_context get_file_context(std::istream& is)
@@ -112,7 +124,7 @@ field_value get(const field_definition_map& definitions, field_tag tag,
                 const field_value_map& values)
 {
     if (const auto it = definitions.find(tag); it != definitions.end()) {
-        if (const auto fn = it->second.default_fn; fn) {
+        if (const auto fn = it->second.defaulter; fn) {
             return {fn(values)};
         }
     }

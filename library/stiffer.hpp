@@ -8,11 +8,9 @@
 #ifndef STIFFER_HPP
 #define STIFFER_HPP
 
-#include <array>
 #include <cstdint>
 #include <map>
 #include <memory>
-#include <optional>
 #include <istream>
 #include <ostream>
 #include <string>
@@ -34,14 +32,9 @@ enum class file_version {
     bigtiff,
 };
 
-file_version to_file_version(std::uint16_t number);
-
-constexpr auto little_endian_key = std::uint16_t{0x4949u};
-constexpr auto big_endian_key = std::uint16_t{0x4D4Du};
-
 using field_tag = std::uint16_t;
-using field_type = std::uint16_t;
 
+using field_type = std::uint16_t;
 constexpr auto byte_field_type = field_type(1u);
 constexpr auto ascii_field_type = field_type(2u);
 constexpr auto short_field_type = field_type(3u);
@@ -73,21 +66,6 @@ using slong_array = std::vector<std::int32_t>;
 using srational_array = std::vector<srational>;
 using float_array = std::vector<float>;
 using double_array = std::vector<double>;
-
-template <typename T>
-constexpr field_type to_field_type();
-
-template <>
-constexpr field_type to_field_type<byte_array>()
-{
-    return byte_field_type;
-}
-
-template <>
-constexpr field_type to_field_type<ascii_array>()
-{
-    return ascii_field_type;
-}
 
 using field_value = std::variant<
     std::monostate,
@@ -169,13 +147,13 @@ inline srational byte_swap(const srational& value)
 using field_value_map = std::map<field_tag, field_value>;
 using field_value_entry = field_value_map::value_type;
 
-using field_default_fn = field_value (*)(const field_value_map& value);
-
 struct field_definition
 {
+    using default_fn = field_value (*)(const field_value_map& value);
+
     const char *name = nullptr;
-    std::uint32_t types; /// Bit set of types
-    field_default_fn default_fn = nullptr;
+    std::uint32_t types = 0u; /// Bit set of types
+    default_fn defaulter = nullptr;
 };
 
 using field_definition_map = std::map<field_tag, field_definition>;
@@ -243,15 +221,6 @@ struct image_file_directory
     field_value_map fields;
     std::size_t next_image;
 };
-
-constexpr std::optional<endian> find_endian(std::uint16_t byte_order)
-{
-    switch (byte_order) {
-    case little_endian_key: return {endian::little};
-    case big_endian_key: return {endian::big};
-    }
-    return {};
-}
 
 } // namespace stiffer
 
