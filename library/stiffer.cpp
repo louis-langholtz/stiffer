@@ -298,7 +298,7 @@ constexpr field_entry byte_swap(const field_entry& value)
         ::stiffer::byte_swap(value.tag),
         ::stiffer::byte_swap(value.type),
         ::stiffer::byte_swap(value.count),
-        value.value_offset
+        value.value_offset // don't byte swap this field yet!
     };
 }
 
@@ -366,7 +366,7 @@ constexpr field_entry byte_swap(const field_entry& value)
         ::stiffer::byte_swap(value.tag),
         ::stiffer::byte_swap(value.type),
         ::stiffer::byte_swap(value.count),
-        value.value_offset
+        value.value_offset // don't byte swap this field yet!
     };
 }
 
