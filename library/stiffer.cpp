@@ -81,8 +81,7 @@ std::enable_if_t<std::is_unsigned_v<U>, T> get(U in, endian from_order, std::siz
         constexpr auto avail = sizeof(in) / sizeof(element_type);
         const auto max_count = std::min(count, avail);
         for (auto i = static_cast<decltype(count)>(0); i < max_count; ++i) {
-            const auto element = from_endian(*(reinterpret_cast<const element_type*>(&in) + i), from_order);
-            elements.push_back(element);
+            elements.push_back(from_endian(*(reinterpret_cast<const element_type*>(&in) + i), from_order));
         }
         return elements;
     }
