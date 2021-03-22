@@ -59,6 +59,7 @@ int main(int argc, const char * argv[]) {
         return 1;
     }
     const auto file_context = stiffer::get_file_context(in);
+    std::cout << "File is version " << file_context.version << "\n";
     std::cout << " file stored in " << file_context.byte_order << " endian order\n";
     std::cout << "native order is " << stiffer::endian::native << " endian order\n";
     std::cout << "first offset is " << file_context.first_ifd_offset << "\n";
@@ -91,7 +92,10 @@ int main(int argc, const char * argv[]) {
                 [](const stiffer::slong_array& arg) { std::cout << arg; },
                 [](const stiffer::srational_array& arg) {},
                 [](const stiffer::float_array& arg) { std::cout << arg; },
-                [](const stiffer::double_array& arg) { std::cout << arg; }
+                [](const stiffer::double_array& arg) { std::cout << arg; },
+                [](const stiffer::long8_array& arg) { std::cout << arg; },
+                [](const stiffer::slong8_array& arg) { std::cout << arg; },
+                [](const stiffer::ifd8_array& arg) {}
             }, field.second);
             std::cout << "\n";
         }

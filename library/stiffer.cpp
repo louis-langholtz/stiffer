@@ -43,7 +43,76 @@ file_version to_file_version(std::uint16_t number)
     throw std::invalid_argument("unrecognized version number");
 }
 
+template <typename T>
+std::enable_if_t<std::is_trivially_copyable_v<T>, T> read(std::istream& in, endian from_order,
+                                                          bool throw_on_fail = true)
+{
+    auto element = T{};
+    in.read(reinterpret_cast<char*>(&element), sizeof(element));
+    if (throw_on_fail && !in.good()) {
+        throw std::runtime_error("can't read data");
+    }
+    return from_endian(element, from_order);
+}
+
+template <typename T>
+T read(std::istream& in, endian from_order, std::size_t count)
+{
+    using element_type = typename T::value_type;
+    T elements;
+    elements.reserve(count);
+    for (auto i = static_cast<decltype(count)>(0); i < count; ++i) {
+        const auto element = read<element_type>(in, from_order, false);
+        if (!in.good()) {
+            throw std::runtime_error(std::string("can't read data for element number ") + std::to_string(i));
+        }
+        elements.push_back(element);
+    }
+    return elements;
+}
+
+template <typename T, typename U>
+std::enable_if_t<std::is_unsigned_v<U>, T> get(U in, std::size_t count)
+{
+    T elements;
+    elements.reserve(count);
+    using element_type = typename T::value_type;
+    if constexpr (sizeof(element_type) < sizeof(in)) {
+        constexpr auto num_bits = sizeof(element_type) * 8u;
+        constexpr auto mask = (static_cast<std::uint64_t>(1) << num_bits) - 1u;
+        constexpr auto avail = sizeof(in) / sizeof(element_type);
+        const auto max_count = std::min(count, avail);
+        for (auto i = static_cast<decltype(count)>(0); i < max_count; ++i) {
+            const auto element = static_cast<element_type>(in & static_cast<decltype(in)>(mask));
+            elements.push_back(element);
+            in >>= num_bits;
+        }
+        return elements;
+    }
+    else {
+        constexpr auto avail = sizeof(in) / sizeof(element_type);
+        const auto max_count = std::min(count, avail);
+        for (auto i = static_cast<decltype(count)>(0); i < max_count; ++i) {
+            elements.push_back(static_cast<element_type>(in));
+        }
+        return elements;
+    }
+}
+
 } // namespace
+
+std::ostream& operator<< (std::ostream& os, file_version value)
+{
+    switch (value) {
+    case file_version::classic:
+        os << "classic";
+        return os;
+    case file_version::bigtiff:
+        os << "bigtiff";
+        return os;
+    }
+    return os;
+}
 
 const char* field_type_to_string(field_type value)
 {
@@ -59,7 +128,7 @@ const char* field_type_to_string(field_type value)
     case slong_field_type: return "slong";
     case srational_field_type: return "srational";
     case float_field_type: return "float";
-    case double_type: return "double";
+    case double_field_type: return "double";
     default: break;
     }
     return "unrecognized";
@@ -91,23 +160,38 @@ file_context get_file_context(std::istream& is)
     if (!endian_found) {
         throw std::invalid_argument("unrecognized byte order");
     }
-    std::uint16_t version_number{};
-    is.read(reinterpret_cast<char*>(&version_number), sizeof(version_number));
+    const auto version_number = read<std::uint16_t>(is, *endian_found, false);
     if (!is.good()) {
         throw std::runtime_error("can't read version number");
     }
-    const auto fv = to_file_version(from_endian(version_number, *endian_found));
+    const auto fv = to_file_version(version_number);
     switch (fv) {
     case file_version::classic: {
-        std::uint32_t offset{};
-        is.read(reinterpret_cast<char*>(&offset), sizeof(offset));
+        const auto offset = read<std::uint32_t>(is, *endian_found, false);
         if (!is.good()) {
             throw std::runtime_error("can't read initial offset");
         }
         return {offset, *endian_found, fv};
     }
-    case file_version::bigtiff:
-        break;
+    case file_version::bigtiff: {
+        const auto offsets_bytesize = read<std::uint16_t>(is, *endian_found, false);
+        if (!is.good()) {
+            throw std::runtime_error("can't read offsets bytesize");
+        }
+        if (offsets_bytesize != 8u) {
+            throw std::invalid_argument(std::string("unexpected offset bytesize of ")
+                                        + std::to_string(offsets_bytesize));
+        }
+        read<std::uint16_t>(is, *endian_found, false);
+        if (!is.good()) {
+            throw std::runtime_error("can't read header padding");
+        }
+        const auto offset = read<std::uint64_t>(is, *endian_found, false);
+        if (!is.good()) {
+            throw std::runtime_error("can't read initial offset");
+        }
+        return {offset, *endian_found, fv};
+    }
     }
     throw std::invalid_argument("unhandled file version");
 }
@@ -131,55 +215,15 @@ field_value get(const field_definition_map& definitions, field_tag tag,
     return {};
 }
 
-template <typename T>
-std::enable_if_t<std::is_trivially_copyable_v<T>, T> read(std::istream& in, endian from_order)
+std::size_t get_unsigned_front(const field_value& result)
 {
-    auto element = T{};
-    in.read(reinterpret_cast<char*>(&element), sizeof(element));
-    if (!in.good()) {
-        throw std::runtime_error("can't read data");
+    if (result == field_value{}) {
+        throw std::invalid_argument("no field value");
     }
-    return from_endian(element, from_order);
-}
-
-template <typename T>
-T read(std::istream& in, endian from_order, std::size_t count)
-{
-    using element_type = typename T::value_type;
-    T elements;
-    elements.reserve(count);
-    for (auto i = static_cast<decltype(count)>(0); i < count; ++i) {
-        auto element = element_type{};
-        try {
-            element = read<element_type>(in, from_order);
-        }
-        catch (const std::runtime_error& ex) {
-            throw std::runtime_error(std::string(ex.what()) +
-                                     std::string(" for element number ") + std::to_string(i));
-        }
-        elements.push_back(element);
-    }
-    return elements;
-}
-
-template <typename T, typename U>
-std::enable_if_t<std::is_unsigned_v<U>, T> get(U in, std::size_t count)
-{
-    T elements;
-    elements.reserve(count);
-    using element_type = typename T::value_type;
-    constexpr auto num_bits = sizeof(element_type) * 8u;
-    constexpr auto mask = (static_cast<std::uint64_t>(1) << num_bits) - 1u;
-    constexpr auto avail = sizeof(in) / sizeof(element_type);
-    const auto max_count = std::min(count, avail);
-    for (auto i = static_cast<decltype(count)>(0); i < max_count; ++i) {
-        const auto element = static_cast<element_type>(in & static_cast<decltype(in)>(mask));
-        elements.push_back(element);
-        if constexpr (sizeof(element_type) < sizeof(in)) {
-            in >>= num_bits;
-        }
-    }
-    return elements;
+    if (const auto values = std::get_if<long_array>(&result); values) return values->at(0);
+    if (const auto values = std::get_if<short_array>(&result); values) return values->at(0);
+    if (const auto values = std::get_if<byte_array>(&result); values) return values->at(0);
+    throw std::invalid_argument("field value not an unsigned integral array type");
 }
 
 namespace classic {
@@ -212,7 +256,7 @@ inline field_entry byte_swap(const field_entry& value)
 
 bool is_value_field(const field_entry& field)
 {
-    return field_type_to_bytesize(field.type) <= sizeof(field_entry::value_offset) && field.count <= 1u;
+    return field_type_to_bytesize(field.type) <= (sizeof(field_entry::value_offset) / field.count);
 }
 
 bool seek_less_than(const field_entry& lhs, const field_entry& rhs)
@@ -233,6 +277,10 @@ field_value get_field_value(std::istream& in, const field_entry& field, endian b
 {
     if (!is_value_field(field)) {
         in.seekg(field.value_offset);
+        if (!in.good()) {
+            throw std::runtime_error(std::string("can't seek to offet ")
+                                     + std::to_string(field.value_offset));
+        }
     }
     switch (field.type) {
     case byte_field_type:
@@ -318,7 +366,7 @@ inline field_entry byte_swap(const field_entry& value)
 
 bool is_value_field(const field_entry& field)
 {
-    return field_type_to_bytesize(field.type) <= sizeof(field_entry::value_offset) && field.count <= 1u;
+    return field_type_to_bytesize(field.type) <= (sizeof(field_entry::value_offset) / field.count);
 }
 
 bool seek_less_than(const field_entry& lhs, const field_entry& rhs)
@@ -339,6 +387,10 @@ field_value get_field_value(std::istream& in, const field_entry& field, endian b
 {
     if (!is_value_field(field)) {
         in.seekg(field.value_offset);
+        if (!in.good()) {
+            throw std::runtime_error(std::string("can't seek to offet ")
+                                     + std::to_string(field.value_offset));
+        }
     }
     switch (field.type) {
     case byte_field_type:
@@ -365,6 +417,18 @@ field_value get_field_value(std::istream& in, const field_entry& field, endian b
         return is_value_field(field)?
         get<undefined_array>(field.value_offset, field.count):
         read<undefined_array>(in, byte_order, field.count);
+    case long8_field_type:
+        return is_value_field(field)?
+        get<long8_array>(field.value_offset, field.count):
+        read<long8_array>(in, byte_order, field.count);
+    case slong8_field_type:
+        return is_value_field(field)?
+        get<slong8_array>(field.value_offset, field.count):
+        read<slong8_array>(in, byte_order, field.count);
+    case ifd8_field_type:
+        return is_value_field(field)?
+        get<ifd8_array>(field.value_offset, field.count):
+        read<ifd8_array>(in, byte_order, field.count);
     case rational_field_type:
         return read<rational_array>(in, byte_order, field.count);
     case srational_field_type:
@@ -428,18 +492,6 @@ field_value max_sample_value_default(const field_value_map& map)
         return {result};
     }
     return {};
-}
-
-std::size_t get_unsigned_front(const field_value_map& map, field_tag tag)
-{
-    const auto result = get(map, tag, get_definitions());
-    if (result == field_value{}) {
-        throw std::invalid_argument(std::to_string(tag) + " tag entry not retrievable");
-    }
-    if (const auto values = std::get_if<long_array>(&result); values) return values->at(0);
-    if (const auto values = std::get_if<short_array>(&result); values) return values->at(0);
-    if (const auto values = std::get_if<byte_array>(&result); values) return values->at(0);
-    throw std::invalid_argument(std::to_string(tag) + " tag entry not any unsigned integral type");
 }
 
 } // namespace

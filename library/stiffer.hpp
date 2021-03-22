@@ -32,6 +32,8 @@ enum class file_version {
     bigtiff,
 };
 
+std::ostream& operator<< (std::ostream& os, file_version value);
+
 using field_tag = std::uint16_t;
 
 using field_type = std::uint16_t;
@@ -46,13 +48,22 @@ constexpr auto sshort_field_type = field_type(8);
 constexpr auto slong_field_type = field_type(9);
 constexpr auto srational_field_type = field_type(10);
 constexpr auto float_field_type = field_type(11);
-constexpr auto double_type = field_type(12);
+constexpr auto double_field_type = field_type(12);
+constexpr auto long8_field_type = field_type{16}; /// BigTIFF type
+constexpr auto slong8_field_type = field_type{17}; /// BigTIFF type
+constexpr auto ifd8_field_type = field_type{18}; /// BigTIFF type
 
 /// Undefined element.
 /// @note This is a helper type to help distinguish an undefined element from other
 ///   single byte integer value types.
 enum class undefined_element: std::uint8_t {};
 static_assert(sizeof(undefined_element) == 1u, "undefined_element size must be 1 byte");
+
+/// IFD8 element.
+/// @note This is a helper type to help distinguish an IFD8 element from other
+///   8-byte integer value types.
+enum class ifd8_element: std::uint64_t {};
+static_assert(sizeof(ifd8_element) == 8u, "ifd8_element size must be 8 bytes");
 
 using byte_array = std::vector<std::uint8_t>;
 using ascii_array = std::string;
@@ -66,6 +77,9 @@ using slong_array = std::vector<std::int32_t>;
 using srational_array = std::vector<srational>;
 using float_array = std::vector<float>;
 using double_array = std::vector<double>;
+using long8_array = std::vector<std::uint64_t>;
+using slong8_array = std::vector<std::int64_t>;
+using ifd8_array = std::vector<ifd8_element>;
 
 using field_value = std::variant<
     std::monostate,
@@ -80,7 +94,10 @@ using field_value = std::variant<
     slong_array,
     srational_array,
     float_array,
-    double_array
+    double_array,
+    long8_array,
+    slong8_array,
+    ifd8_array
 >;
 
 constexpr field_type to_field_type(const field_value& value)
@@ -103,6 +120,9 @@ constexpr std::size_t size(const field_value& value)
     case 10: return std::size(std::get<10>(value));
     case 11: return std::size(std::get<11>(value));
     case 12: return std::size(std::get<12>(value));
+    case 13: return std::size(std::get<13>(value));
+    case 14: return std::size(std::get<14>(value));
+    case 15: return std::size(std::get<15>(value));
     }
     return 0u;
 }
@@ -123,7 +143,10 @@ constexpr std::size_t field_type_to_bytesize(field_type value)
     case slong_field_type: return 4u;
     case srational_field_type: return 8u;
     case float_field_type: return 4u;
-    case double_type: return 8u;
+    case double_field_type: return 8u;
+    case long8_field_type: return 8u;
+    case slong8_field_type: return 8u;
+    case ifd8_field_type: return 8u;
     default: break;
     }
     return 1u;
@@ -132,6 +155,11 @@ constexpr std::size_t field_type_to_bytesize(field_type value)
 inline undefined_element byte_swap(undefined_element value)
 {
     return value;
+}
+
+inline ifd8_element byte_swap(ifd8_element value)
+{
+    return static_cast<ifd8_element>(byte_swap(static_cast<std::uint64_t>(value)));
 }
 
 inline rational byte_swap(const rational& value)
@@ -207,6 +235,8 @@ field_value get(const field_value_map& map, field_tag tag, const field_definitio
     return get(map, tag, get(definitions, tag, map));
 }
 
+std::size_t get_unsigned_front(const field_value& result);
+
 struct file_context
 {
     std::size_t first_ifd_offset;
@@ -239,6 +269,11 @@ image_file_directory get_image_file_directory(std::istream& in, std::size_t at, 
 namespace stiffer::v6 {
 
 const field_definition_map& get_definitions();
+
+inline std::size_t get_unsigned_front(const field_value_map& map, field_tag tag)
+{
+    return get_unsigned_front(get(map, tag, get_definitions()));
+}
 
 std::size_t get_compression(const field_value_map& map);
 std::size_t get_image_length(const field_value_map& map);
