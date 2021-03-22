@@ -29,7 +29,7 @@ enum class endian {
 std::ostream& operator<<(std::ostream& os, endian value);
 
 template <typename T>
-std::enable_if_t<std::is_unsigned_v<T> && (sizeof(T) > 1u), T> byte_swap(T value)
+constexpr std::enable_if_t<std::is_unsigned_v<T> && (sizeof(T) > 1u), T> byte_swap(T value)
 {
     auto result = T{};
     for (auto i = 0u; i < sizeof(value); ++i) {
@@ -41,13 +41,13 @@ std::enable_if_t<std::is_unsigned_v<T> && (sizeof(T) > 1u), T> byte_swap(T value
 }
 
 template <typename T>
-std::enable_if_t<std::is_unsigned_v<T> && (sizeof(T) == 1u), T> byte_swap(T value)
+constexpr std::enable_if_t<std::is_unsigned_v<T> && (sizeof(T) == 1u), T> byte_swap(T value)
 {
     return value;
 }
 
 template <typename T>
-std::enable_if_t<!std::is_unsigned_v<T> && std::is_integral_v<T>, T> byte_swap(T value)
+constexpr std::enable_if_t<!std::is_unsigned_v<T> && std::is_integral_v<T>, T> byte_swap(T value)
 {
     return static_cast<T>(byte_swap(static_cast<std::make_unsigned_t<T>>(value)));
 }

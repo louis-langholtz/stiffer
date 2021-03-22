@@ -256,12 +256,16 @@ struct image_file_directory
 
 namespace stiffer::classic {
 
+using field_count = std::uint32_t;
+using field_offset = std::uint32_t;
 image_file_directory get_image_file_directory(std::istream& is, std::size_t at, endian byte_order);
 
 } // stiffer::classic
 
 namespace stiffer::bigtiff {
 
+using field_count = std::uint64_t;
+using field_offset = std::uint64_t;
 image_file_directory get_image_file_directory(std::istream& in, std::size_t at, endian byte_order);
 
 } // stiffer::bigtiff

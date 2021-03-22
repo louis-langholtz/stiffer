@@ -233,10 +233,10 @@ namespace {
 #pragma pack(push, 1)
 
 struct field_entry {
-    std::uint16_t tag;
-    std::uint16_t type;
-    std::uint32_t count; /// Count of the indicated type.
-    std::uint32_t value_offset; /// Offset in bytes to the first value.
+    field_tag tag;
+    field_type type;
+    field_count count; /// Count of the indicated type.
+    field_offset value_offset; /// Offset in bytes to the first value.
 };
 static_assert(sizeof(field_entry) == 12u, "field_entry size must be 12 bytes");
 
@@ -244,7 +244,7 @@ static_assert(sizeof(field_entry) == 12u, "field_entry size must be 12 bytes");
 
 using field_entries = std::vector<field_entry>;
 
-inline field_entry byte_swap(const field_entry& value)
+constexpr field_entry byte_swap(const field_entry& value)
 {
     return field_entry{
         ::stiffer::byte_swap(value.tag),
@@ -254,7 +254,7 @@ inline field_entry byte_swap(const field_entry& value)
     };
 }
 
-bool is_value_field(const field_entry& field)
+constexpr bool is_value_field(const field_entry& field)
 {
     return field_type_to_bytesize(field.type) <= (sizeof(field_entry::value_offset) / field.count);
 }
@@ -343,10 +343,10 @@ namespace {
 #pragma pack(push, 1)
 
 struct field_entry {
-    std::uint16_t tag;
-    std::uint16_t type;
-    std::uint64_t count; /// Count of the indicated type.
-    std::uint64_t value_offset; /// Offset in bytes to the first value.
+    field_tag tag;
+    field_type type;
+    field_count count; /// Count of the indicated type.
+    field_offset value_offset; /// Offset in bytes to the first value.
 };
 static_assert(sizeof(field_entry) == 20u, "field_entry size must be 12 bytes");
 
@@ -354,7 +354,7 @@ static_assert(sizeof(field_entry) == 20u, "field_entry size must be 12 bytes");
 
 using field_entries = std::vector<field_entry>;
 
-inline field_entry byte_swap(const field_entry& value)
+constexpr field_entry byte_swap(const field_entry& value)
 {
     return field_entry{
         ::stiffer::byte_swap(value.tag),
@@ -364,7 +364,7 @@ inline field_entry byte_swap(const field_entry& value)
     };
 }
 
-bool is_value_field(const field_entry& field)
+constexpr bool is_value_field(const field_entry& field)
 {
     return field_type_to_bytesize(field.type) <= (sizeof(field_entry::value_offset) / field.count);
 }
