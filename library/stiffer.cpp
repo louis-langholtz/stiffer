@@ -72,31 +72,80 @@ T read(std::istream& in, endian from_order, std::size_t count)
 }
 
 template <typename T, typename U>
-std::enable_if_t<std::is_unsigned_v<U>, T> get(U in, std::size_t count)
+std::enable_if_t<std::is_unsigned_v<U>, T> get(U in, endian from_order, std::size_t count)
 {
     T elements;
     elements.reserve(count);
     using element_type = typename T::value_type;
     if constexpr (sizeof(element_type) < sizeof(in)) {
-        constexpr auto num_bits = sizeof(element_type) * 8u;
-        constexpr auto mask = (static_cast<std::uint64_t>(1) << num_bits) - 1u;
         constexpr auto avail = sizeof(in) / sizeof(element_type);
         const auto max_count = std::min(count, avail);
         for (auto i = static_cast<decltype(count)>(0); i < max_count; ++i) {
-            const auto element = static_cast<element_type>(in & static_cast<decltype(in)>(mask));
+            const auto element = from_endian(*(reinterpret_cast<const element_type*>(&in) + i), from_order);
             elements.push_back(element);
-            in >>= num_bits;
         }
         return elements;
     }
     else {
-        constexpr auto avail = sizeof(in) / sizeof(element_type);
-        const auto max_count = std::min(count, avail);
-        for (auto i = static_cast<decltype(count)>(0); i < max_count; ++i) {
-            elements.push_back(static_cast<element_type>(in));
-        }
+        elements.push_back(from_endian(static_cast<element_type>(in), from_order));
         return elements;
     }
+}
+
+template <typename T>
+field_value get_field_value(std::istream& in, const T& field, endian byte_order)
+{
+    if (!is_value_field(field)) {
+        const auto offset = from_endian(field.value_offset, byte_order);
+        in.seekg(offset);
+        if (!in.good()) {
+            throw std::runtime_error(std::string("can't seek to offet ")
+                                     + std::to_string(offset));
+        }
+    }
+    switch (field.type) {
+    case byte_field_type:
+        return is_value_field(field)?
+        get<byte_array>(field.value_offset, byte_order, field.count):
+        read<byte_array>(in, byte_order, field.count);
+    case ascii_field_type:
+        return is_value_field(field)?
+        get<ascii_array>(field.value_offset, byte_order, field.count):
+        read<ascii_array>(in, byte_order, field.count);
+    case short_field_type:
+        return is_value_field(field)?
+        get<short_array>(field.value_offset, byte_order, field.count):
+        read<short_array>(in, byte_order, field.count);
+    case long_field_type:
+        return is_value_field(field)?
+        get<long_array>(field.value_offset, byte_order, field.count):
+        read<long_array>(in, byte_order, field.count);
+    case sbyte_field_type:
+        return is_value_field(field)?
+        get<sbyte_array>(field.value_offset, byte_order, field.count):
+        read<sbyte_array>(in, byte_order, field.count);
+    case undefined_field_type:
+        return is_value_field(field)?
+        get<undefined_array>(field.value_offset, byte_order, field.count):
+        read<undefined_array>(in, byte_order, field.count);
+    case long8_field_type:
+        return is_value_field(field)?
+        get<long8_array>(field.value_offset, byte_order, field.count):
+        read<long8_array>(in, byte_order, field.count);
+    case slong8_field_type:
+        return is_value_field(field)?
+        get<slong8_array>(field.value_offset, byte_order, field.count):
+        read<slong8_array>(in, byte_order, field.count);
+    case ifd8_field_type:
+        return is_value_field(field)?
+        get<ifd8_array>(field.value_offset, byte_order, field.count):
+        read<ifd8_array>(in, byte_order, field.count);
+    case rational_field_type:
+        return read<rational_array>(in, byte_order, field.count);
+    case srational_field_type:
+        return read<srational_array>(in, byte_order, field.count);
+    }
+    return {};
 }
 
 } // namespace
@@ -250,7 +299,7 @@ constexpr field_entry byte_swap(const field_entry& value)
         ::stiffer::byte_swap(value.tag),
         ::stiffer::byte_swap(value.type),
         ::stiffer::byte_swap(value.count),
-        ::stiffer::byte_swap(value.value_offset)
+        value.value_offset
     };
 }
 
@@ -271,48 +320,6 @@ bool seek_less_than(const field_entry& lhs, const field_entry& rhs)
         return false;
     }
     return lhs.value_offset < rhs.value_offset;
-}
-
-field_value get_field_value(std::istream& in, const field_entry& field, endian byte_order)
-{
-    if (!is_value_field(field)) {
-        in.seekg(field.value_offset);
-        if (!in.good()) {
-            throw std::runtime_error(std::string("can't seek to offet ")
-                                     + std::to_string(field.value_offset));
-        }
-    }
-    switch (field.type) {
-    case byte_field_type:
-        return is_value_field(field)?
-        get<byte_array>(field.value_offset, field.count):
-        read<byte_array>(in, byte_order, field.count);
-    case ascii_field_type:
-        return is_value_field(field)?
-        get<ascii_array>(field.value_offset, field.count):
-        read<ascii_array>(in, byte_order, field.count);
-    case short_field_type:
-        return is_value_field(field)?
-        get<short_array>(field.value_offset, field.count):
-        read<short_array>(in, byte_order, field.count);
-    case long_field_type:
-        return is_value_field(field)?
-        get<long_array>(field.value_offset, field.count):
-        read<long_array>(in, byte_order, field.count);
-    case sbyte_field_type:
-        return is_value_field(field)?
-        get<sbyte_array>(field.value_offset, field.count):
-        read<sbyte_array>(in, byte_order, field.count);
-    case undefined_field_type:
-        return is_value_field(field)?
-        get<undefined_array>(field.value_offset, field.count):
-        read<undefined_array>(in, byte_order, field.count);
-    case rational_field_type:
-        return read<rational_array>(in, byte_order, field.count);
-    case srational_field_type:
-        return read<srational_array>(in, byte_order, field.count);
-    }
-    return {};
 }
 
 } // namespace
@@ -360,7 +367,7 @@ constexpr field_entry byte_swap(const field_entry& value)
         ::stiffer::byte_swap(value.tag),
         ::stiffer::byte_swap(value.type),
         ::stiffer::byte_swap(value.count),
-        ::stiffer::byte_swap(value.value_offset)
+        value.value_offset
     };
 }
 
@@ -381,60 +388,6 @@ bool seek_less_than(const field_entry& lhs, const field_entry& rhs)
         return false;
     }
     return lhs.value_offset < rhs.value_offset;
-}
-
-field_value get_field_value(std::istream& in, const field_entry& field, endian byte_order)
-{
-    if (!is_value_field(field)) {
-        in.seekg(field.value_offset);
-        if (!in.good()) {
-            throw std::runtime_error(std::string("can't seek to offet ")
-                                     + std::to_string(field.value_offset));
-        }
-    }
-    switch (field.type) {
-    case byte_field_type:
-        return is_value_field(field)?
-        get<byte_array>(field.value_offset, field.count):
-        read<byte_array>(in, byte_order, field.count);
-    case ascii_field_type:
-        return is_value_field(field)?
-        get<ascii_array>(field.value_offset, field.count):
-        read<ascii_array>(in, byte_order, field.count);
-    case short_field_type:
-        return is_value_field(field)?
-        get<short_array>(field.value_offset, field.count):
-        read<short_array>(in, byte_order, field.count);
-    case long_field_type:
-        return is_value_field(field)?
-        get<long_array>(field.value_offset, field.count):
-        read<long_array>(in, byte_order, field.count);
-    case sbyte_field_type:
-        return is_value_field(field)?
-        get<sbyte_array>(field.value_offset, field.count):
-        read<sbyte_array>(in, byte_order, field.count);
-    case undefined_field_type:
-        return is_value_field(field)?
-        get<undefined_array>(field.value_offset, field.count):
-        read<undefined_array>(in, byte_order, field.count);
-    case long8_field_type:
-        return is_value_field(field)?
-        get<long8_array>(field.value_offset, field.count):
-        read<long8_array>(in, byte_order, field.count);
-    case slong8_field_type:
-        return is_value_field(field)?
-        get<slong8_array>(field.value_offset, field.count):
-        read<slong8_array>(in, byte_order, field.count);
-    case ifd8_field_type:
-        return is_value_field(field)?
-        get<ifd8_array>(field.value_offset, field.count):
-        read<ifd8_array>(in, byte_order, field.count);
-    case rational_field_type:
-        return read<rational_array>(in, byte_order, field.count);
-    case srational_field_type:
-        return read<srational_array>(in, byte_order, field.count);
-    }
-    return {};
 }
 
 } // namespace
