@@ -354,7 +354,7 @@ struct field_entry {
     field_count count; /// Count of the indicated type.
     field_offset value_offset; /// Offset in bytes to the first value.
 };
-static_assert(sizeof(field_entry) == 20u, "field_entry size must be 12 bytes");
+static_assert(sizeof(field_entry) == 20u, "field_entry size must be 20 bytes");
 
 #pragma pack(pop)
 
