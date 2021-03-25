@@ -274,6 +274,20 @@ std::size_t get_unsigned_front(const field_value& result)
     throw std::invalid_argument("field value not an unsigned integral array type");
 }
 
+void decompress_packed_bits()
+{
+    /*
+     * Loop until you get the number of unpacked bytes you are expecting:
+     * Read the next source byte into n.
+     * If n is between 0 and 127 inclusive, copy the next n+1 bytes literally. Else if n is between -127 and -1 inclusive, copy the next byte -n+1 times.
+     * Else if n is -128, noop.
+     * Endloop
+     */
+    for (;;) {
+
+    }
+}
+
 namespace classic {
 
 namespace {
@@ -416,14 +430,53 @@ namespace stiffer::v6 {
 
 namespace {
 
+constexpr auto new_subfile_type_tag = field_tag{254u};
+constexpr auto subfile_type_tag = field_tag{255u};
 constexpr auto image_width_tag = field_tag{256u};
 constexpr auto image_length_tag = field_tag{257u};
 constexpr auto bits_per_sample_tag = field_tag{258u};
-constexpr auto samples_per_pixel_tag = field_tag{277u};
 constexpr auto compression_tag = field_tag{259u};
+constexpr auto photometric_interpretation_tag = field_tag{262u};
+constexpr auto threshholding_tag = field_tag{263u};
+constexpr auto cell_width_tag = field_tag{264u};
+constexpr auto cell_length_tag = field_tag{265u};
+constexpr auto fill_order_tag = field_tag{266u};
+constexpr auto document_name_tag = field_tag{269u};
+constexpr auto image_description_tag = field_tag{270u};
+constexpr auto make_tag = field_tag{271u};
+constexpr auto model_tag = field_tag{272u};
 constexpr auto strip_offsets_tag = field_tag{273u};
+constexpr auto orientation_tag = field_tag{274u};
+constexpr auto samples_per_pixel_tag = field_tag{277u};
 constexpr auto rows_per_strip_tag = field_tag{278u};
 constexpr auto strip_byte_counts_tag = field_tag{279u};
+constexpr auto min_sample_value_tag = field_tag{280u};
+constexpr auto max_sample_value_tag = field_tag{281u};
+constexpr auto x_resolution_tag = field_tag{282u};
+constexpr auto y_resolution_tag = field_tag{283u};
+constexpr auto planar_configuration_tag = field_tag{284u};
+constexpr auto page_name_tag = field_tag{285u};
+constexpr auto x_position_tag = field_tag{286u};
+constexpr auto y_position_tag = field_tag{287u};
+constexpr auto free_offsets_tag = field_tag{288u};
+constexpr auto free_byte_counts_tag = field_tag{289u};
+constexpr auto gray_response_unit_tag = field_tag{290u};
+constexpr auto gray_response_curve_tag = field_tag{291u};
+constexpr auto t4_options_tag = field_tag{292u};
+constexpr auto t6_options_tag = field_tag{293u};
+constexpr auto resolution_unit_tag = field_tag{296u};
+constexpr auto page_number_tag = field_tag{297u};
+constexpr auto software_tag = field_tag{305u};
+constexpr auto date_time_tag = field_tag{306u};
+constexpr auto artist_tag = field_tag{315u};
+constexpr auto host_computer_tag = field_tag{316u};
+constexpr auto color_map_tag = field_tag{320u};
+constexpr auto tile_width_tag = field_tag{322u};
+constexpr auto tile_length_tag = field_tag{323u};
+constexpr auto tile_offsets_tag = field_tag{324u};
+constexpr auto tile_byte_counts_tag = field_tag{325u};
+constexpr auto extra_samples_tag = field_tag{338u};
+constexpr auto copyright_tag = field_tag{33432u};
 
 field_value bits_per_sample_value_default(const field_value_map& map)
 {
@@ -446,47 +499,63 @@ field_value max_sample_value_default(const field_value_map& map)
     return {};
 }
 
+constexpr auto ascii_field_bit = (static_cast<std::uint32_t>(0x1u) << ascii_field_type);
+constexpr auto short_field_bit = (static_cast<std::uint32_t>(0x1u) << short_field_type);
+constexpr auto long_field_bit = (static_cast<std::uint32_t>(0x1u) << long_field_type);
+constexpr auto rational_field_bit = (static_cast<std::uint32_t>(0x1u) << rational_field_type);
+
 } // namespace
 
 const field_definition_map& get_definitions()
 {
     static const auto map = field_definition_map{
-        {315u, {"Artist", (0x1u << ascii_field_type)}},
-        {bits_per_sample_tag, {"BitsPerSample", (0x1u << short_field_type), bits_per_sample_value_default}},
-        {265u, {"CellLength", (0x1u << short_field_type)}},
-        {264u, {"CellWidth", (0x1u << short_field_type)}},
-        {320u, {"ColorMap", (0x1u << short_field_type)}},
-        {compression_tag, {"Compression", (0x1u << short_field_type), get_short_array_1}},
-        {33432u, {"Copyright", (0x1u << ascii_field_type)}},
-        {306u, {"DateTime", (0x1u << ascii_field_type)}},
-        {338u, {"ExtraSamples", (0x1u << short_field_type)}},
-        {266u, {"FillOrder", (0x1u << short_field_type), get_short_array_1}},
-        {289u, {"FreeByteCounts", (0x1u << long_field_type)}},
-        {288u, {"FreeOffsets", (0x1u << long_field_type)}},
-        {291u, {"GrayResponseCurve", (0x1u << short_field_type)}},
-        {290u, {"GrayResponseUnit", (0x1u << short_field_type), get_short_array_2}},
-        {316u, {"HostComputer", (0x1u << ascii_field_type)}},
-        {270u, {"ImageDescription", (0x1u << ascii_field_type)}},
-        {image_length_tag, {"ImageLength", (0x1u << short_field_type)|(0x1u << long_field_type)}},
-        {image_width_tag, {"ImageWidth", (0x1u << short_field_type)|(0x1u << long_field_type)}},
-        {271u, {"Make", (0x1u << ascii_field_type)}},
-        {281u, {"MaxSampleValue", (0x1u << short_field_type), max_sample_value_default}},
-        {280u, {"MinSampleValue", (0x1u << short_field_type), get_short_array_0}},
-        {272u, {"Model", (0x1u << ascii_field_type)}},
-        {254u, {"NewSubfileType", (0x1u << long_field_type), get_long_array_0}},
-        {274u, {"Orientation", (0x1u << short_field_type), get_short_array_1}},
-        {262u, {"PhotometricInterpretation", (0x1u << short_field_type), get_short_array_1}},
-        {284u, {"PlanarConfiguration", (0x1u << short_field_type), get_short_array_1}},
-        {296u, {"ResolutionUnit", (0x1u << short_field_type), get_short_array_2}},
-        {rows_per_strip_tag, {"RowsPerStrip", (0x1u << short_field_type)|(0x1u << long_field_type), get_long_array_max}},
-        {samples_per_pixel_tag, {"SamplesPerPixel", (0x1u << short_field_type), get_short_array_1}},
-        {305u, {"Software", (0x1u << ascii_field_type)}},
-        {strip_byte_counts_tag, {"StripByteCounts", (0x1u << short_field_type)|(0x1u << long_field_type)}},
-        {strip_offsets_tag, {"StripOffsets", (0x1u << short_field_type)|(0x1u << long_field_type)}},
-        {255u, {"SubfileType", (0x1u << short_field_type)}},
-        {263u, {"Threshholding", (0x1u << short_field_type), get_short_array_1}},
-        {282u, {"XResolution", (0x1u << rational_field_type)}},
-        {283u, {"YResolution", (0x1u << rational_field_type)}},
+        {artist_tag, {"Artist", ascii_field_bit}},
+        {bits_per_sample_tag, {"BitsPerSample", short_field_bit, bits_per_sample_value_default}},
+        {cell_length_tag, {"CellLength", short_field_bit}},
+        {cell_width_tag, {"CellWidth", short_field_bit}},
+        {color_map_tag, {"ColorMap", short_field_bit}},
+        {compression_tag, {"Compression", short_field_bit, get_short_array_1}},
+        {copyright_tag, {"Copyright", ascii_field_bit}},
+        {date_time_tag, {"DateTime", ascii_field_bit}},
+        {document_name_tag, {"DocumentName", ascii_field_bit}},
+        {extra_samples_tag, {"ExtraSamples", short_field_bit}},
+        {fill_order_tag, {"FillOrder", short_field_bit, get_short_array_1}},
+        {free_byte_counts_tag, {"FreeByteCounts", long_field_bit}},
+        {free_offsets_tag, {"FreeOffsets", long_field_bit}},
+        {gray_response_curve_tag, {"GrayResponseCurve", short_field_bit}},
+        {gray_response_unit_tag, {"GrayResponseUnit", short_field_bit, get_short_array_2}},
+        {host_computer_tag, {"HostComputer", ascii_field_bit}},
+        {image_description_tag, {"ImageDescription", ascii_field_bit}},
+        {image_length_tag, {"ImageLength", short_field_bit|long_field_bit}},
+        {image_width_tag, {"ImageWidth", short_field_bit|long_field_bit}},
+        {make_tag, {"Make", ascii_field_bit}},
+        {max_sample_value_tag, {"MaxSampleValue", short_field_bit, max_sample_value_default}},
+        {min_sample_value_tag, {"MinSampleValue", short_field_bit, get_short_array_0}},
+        {model_tag, {"Model", ascii_field_bit}},
+        {new_subfile_type_tag, {"NewSubfileType", long_field_bit, get_long_array_0}},
+        {orientation_tag, {"Orientation", short_field_bit, get_short_array_1}},
+        {page_name_tag, {"PageName", ascii_field_bit}},
+        {page_number_tag, {"PageNumber", short_field_bit}},
+        {photometric_interpretation_tag, {"PhotometricInterpretation", short_field_bit, get_short_array_1}},
+        {planar_configuration_tag, {"PlanarConfiguration", short_field_bit, get_short_array_1}},
+        {resolution_unit_tag, {"ResolutionUnit", short_field_bit, get_short_array_2}},
+        {rows_per_strip_tag, {"RowsPerStrip", short_field_bit|long_field_bit, get_long_array_max}},
+        {samples_per_pixel_tag, {"SamplesPerPixel", short_field_bit, get_short_array_1}},
+        {software_tag, {"Software", ascii_field_bit}},
+        {strip_byte_counts_tag, {"StripByteCounts", short_field_bit|long_field_bit}},
+        {strip_offsets_tag, {"StripOffsets", short_field_bit|long_field_bit}},
+        {subfile_type_tag, {"SubfileType", short_field_bit}},
+        {t4_options_tag, {"T4Options", long_field_bit, get_long_array_0}},
+        {t6_options_tag, {"T6Options", long_field_bit, get_long_array_0}},
+        {threshholding_tag, {"Threshholding", short_field_bit, get_short_array_1}},
+        {tile_byte_counts_tag, {"TileByteCounts", short_field_bit|long_field_bit}},
+        {tile_length_tag, {"TileLength", short_field_bit|long_field_bit}},
+        {tile_offsets_tag, {"TileOffsets", long_field_bit}},
+        {tile_width_tag, {"TileWidth", short_field_bit|long_field_bit}},
+        {x_position_tag, {"XPosition", rational_field_bit}},
+        {x_resolution_tag, {"XResolution", rational_field_bit}},
+        {y_position_tag, {"YPosition", rational_field_bit}},
+        {y_resolution_tag, {"YResolution", rational_field_bit}},
     };
     return map;
 }
@@ -516,30 +585,96 @@ std::size_t get_rows_per_strip(const field_value_map& map)
     return get_unsigned_front(map, rows_per_strip_tag);
 }
 
-std::size_t get_strip_byte_count(const field_value_map& map, std::size_t strip)
+std::size_t get_orientation(const field_value_map& map)
+{
+    return get_unsigned_front(map, orientation_tag);
+}
+
+std::size_t get_photometric_interpretation(const field_value_map& map)
+{
+    return get_unsigned_front(map, photometric_interpretation_tag);
+}
+
+std::size_t get_planar_configuraion(const field_value_map& map)
+{
+    return get_unsigned_front(map, planar_configuration_tag);
+}
+
+std::size_t get_resolution_unit(const field_value_map& map)
+{
+    return get_unsigned_front(map, resolution_unit_tag);
+}
+
+std::size_t get_x_resolution(const field_value_map& map)
+{
+    return get_unsigned_front(map, x_resolution_tag);
+}
+
+std::size_t get_y_resolution(const field_value_map& map)
+{
+    return get_unsigned_front(map, y_resolution_tag);
+}
+
+std::size_t get_tile_length(const field_value_map& map)
+{
+    return get_unsigned_front(map, tile_length_tag);
+}
+
+std::size_t get_tile_width(const field_value_map& map)
+{
+    return get_unsigned_front(map, tile_width_tag);
+}
+
+std::size_t get_strip_byte_count(const field_value_map& map, std::size_t index)
 {
     const auto found = find(map, strip_byte_counts_tag);
     if (!found) {
         throw std::invalid_argument("strip byte counts entry missing from ifd");
     }
     const auto longs = std::get_if<long_array>(found);
-    if (longs) return longs->at(strip);
+    if (longs) return longs->at(index);
     const auto shorts = std::get_if<short_array>(found);
-    if (shorts) return shorts->at(strip);
+    if (shorts) return shorts->at(index);
     throw std::invalid_argument("strip byte counts entry type not long nor short");
 }
 
-std::size_t get_strip_offset(const field_value_map& map, std::size_t strip)
+std::size_t get_strip_offset(const field_value_map& map, std::size_t index)
 {
     const auto found = find(map, strip_offsets_tag);
     if (!found) {
         throw std::invalid_argument("strip offsets entry missing from ifd");
     }
     const auto longs = std::get_if<long_array>(found);
-    if (longs) return longs->at(strip);
+    if (longs) return longs->at(index);
     const auto shorts = std::get_if<short_array>(found);
-    if (shorts) return shorts->at(strip);
+    if (shorts) return shorts->at(index);
     throw std::invalid_argument("strip offsets entry type not long nor short");
+}
+
+std::size_t get_tile_byte_count(const field_value_map& map, std::size_t index)
+{
+    const auto found = find(map, tile_byte_counts_tag);
+    if (!found) {
+        throw std::invalid_argument("tile byte counts entry missing from ifd");
+    }
+    const auto longs = std::get_if<long_array>(found);
+    if (longs) return longs->at(index);
+    const auto shorts = std::get_if<short_array>(found);
+    if (shorts) return shorts->at(index);
+    throw std::invalid_argument("tile byte counts entry type not long nor short");
+}
+
+std::size_t get_tile_offset(const field_value_map& map, std::size_t index)
+{
+    const auto found = find(map, tile_offsets_tag);
+    if (!found) {
+        throw std::invalid_argument("tile offsets entry missing from ifd");
+    }
+    const auto longs = std::get_if<long_array>(found);
+    if (longs) return longs->at(index);
+    const auto shorts = std::get_if<short_array>(found);
+    if (shorts) return shorts->at(index);
+    throw std::invalid_argument("tile offsets entry type not long nor short");
 }
 
 field_value get_bits_per_sample(const field_value_map& map)

@@ -69,7 +69,7 @@ int main(int argc, const char * argv[]) {
             stiffer::bigtiff::get_image_file_directory(in, offset, file_context.byte_order);
         std::cout << "file has " << std::size(ifd.fields) << " fields\n";
         for (const auto& field: ifd.fields) {
-            std::cout << "tag=" << field.first;
+            std::cout << "tag=" << stiffer::to_underlying(field.first);
             const auto found = find(stiffer::v6::get_definitions(), field.first);
             if (found) {
                 std::cout << "(" << found->name << ")";

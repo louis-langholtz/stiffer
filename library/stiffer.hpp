@@ -27,6 +27,14 @@
 
 namespace stiffer {
 
+/// Converts the given value to the value as the underlying type.
+/// @note This is like <code>std::to_underlying</code> slated for C++23.
+template <typename T>
+constexpr std::underlying_type_t<T> to_underlying(T value) noexcept
+{
+    return static_cast<std::underlying_type_t<T>>(value);
+}
+
 enum class file_version {
     classic,
     bigtiff,
@@ -34,7 +42,19 @@ enum class file_version {
 
 std::ostream& operator<< (std::ostream& os, file_version value);
 
-using field_tag = std::uint16_t;
+enum class field_tag: std::uint16_t {};
+
+template <int N>
+constexpr std::enable_if_t<N >= 0 && N < std::numeric_limits<std::underlying_type_t<field_tag>>::max(), field_tag>
+to_tag()
+{
+    return static_cast<field_tag>(N);
+}
+
+constexpr field_tag byte_swap(field_tag value)
+{
+    return static_cast<field_tag>(byte_swap(static_cast<std::underlying_type_t<field_tag>>(value)));
+}
 
 using field_type = std::uint16_t;
 constexpr auto byte_field_type = field_type(1u);
@@ -252,6 +272,8 @@ struct image_file_directory
     std::size_t next_image;
 };
 
+void decompress_packed_bits();
+
 } // namespace stiffer
 
 namespace stiffer::classic {
@@ -284,6 +306,14 @@ std::size_t get_image_length(const field_value_map& map);
 std::size_t get_image_width(const field_value_map& map);
 std::size_t get_samples_per_pixel(const field_value_map& map);
 std::size_t get_rows_per_strip(const field_value_map& map);
+std::size_t get_orientation(const field_value_map& map);
+std::size_t get_photometric_interpretation(const field_value_map& map);
+std::size_t get_planar_configuraion(const field_value_map& map);
+std::size_t get_resolution_unit(const field_value_map& map);
+std::size_t get_x_resolution(const field_value_map& map);
+std::size_t get_y_resolution(const field_value_map& map);
+std::size_t get_tile_length(const field_value_map& map);
+std::size_t get_tile_width(const field_value_map& map);
 
 inline std::size_t get_strips_per_image(const field_value_map& map)
 {
@@ -291,8 +321,10 @@ inline std::size_t get_strips_per_image(const field_value_map& map)
     return (get_image_length(map) + rows_per_strip - 1u) / rows_per_strip;
 }
 
-std::size_t get_strip_byte_count(const field_value_map& map, std::size_t strip);
-std::size_t get_strip_offset(const field_value_map& map, std::size_t strip);
+std::size_t get_strip_byte_count(const field_value_map& map, std::size_t index);
+std::size_t get_strip_offset(const field_value_map& map, std::size_t index);
+std::size_t get_tile_byte_count(const field_value_map& map, std::size_t index);
+std::size_t get_tile_offset(const field_value_map& map, std::size_t index);
 
 field_value get_bits_per_sample(const field_value_map& map);
 
