@@ -533,11 +533,11 @@ field_value max_sample_value_default(const field_value_map& fields)
     return {};
 }
 
-constexpr auto ascii_field_bit = (static_cast<std::uint32_t>(0x1u) << ascii_field_type);
-constexpr auto short_field_bit = (static_cast<std::uint32_t>(0x1u) << short_field_type);
-constexpr auto long_field_bit = (static_cast<std::uint32_t>(0x1u) << long_field_type);
-constexpr auto rational_field_bit = (static_cast<std::uint32_t>(0x1u) << rational_field_type);
-constexpr auto ifd_field_bit = (static_cast<std::uint32_t>(0x1u) << ifd_field_type);
+constexpr auto ascii_field_bit = (static_cast<std::uint32_t>(0x1u) << to_underlying(ascii_field_type));
+constexpr auto short_field_bit = (static_cast<std::uint32_t>(0x1u) << to_underlying(short_field_type));
+constexpr auto long_field_bit = (static_cast<std::uint32_t>(0x1u) << to_underlying(long_field_type));
+constexpr auto rational_field_bit = (static_cast<std::uint32_t>(0x1u) << to_underlying(rational_field_type));
+constexpr auto ifd_field_bit = (static_cast<std::uint32_t>(0x1u) << to_underlying(ifd_field_type));
 
 } // namespace
 

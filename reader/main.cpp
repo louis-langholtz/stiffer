@@ -75,7 +75,7 @@ int main(int argc, const char * argv[]) {
                 std::cout << "(" << found->name << ")";
             }
             const auto field_type = to_field_type(field.second);
-            std::cout << ", type=" << field_type;
+            std::cout << ", type=" << to_underlying(field_type);
             std::cout << "(" << stiffer::field_type_to_string(field_type) << ")";
             std::cout << ", count=" << size(field.second);
             std::cout << ", value=";

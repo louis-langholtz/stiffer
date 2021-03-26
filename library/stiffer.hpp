@@ -36,6 +36,13 @@ constexpr std::underlying_type_t<T> to_underlying(T value) noexcept
     return static_cast<std::underlying_type_t<T>>(value);
 }
 
+template <typename T>
+constexpr std::enable_if_t<std::is_enum_v<T>, T> byte_swap(T value)
+{
+    using type = decltype(value);
+    return static_cast<type>(byte_swap(static_cast<std::underlying_type_t<type>>(value)));
+}
+
 enum class file_version {
     classic,
     bigtiff,
@@ -52,12 +59,8 @@ to_tag()
     return static_cast<field_tag>(N);
 }
 
-constexpr field_tag byte_swap(field_tag value)
-{
-    return static_cast<field_tag>(byte_swap(static_cast<std::underlying_type_t<field_tag>>(value)));
-}
+enum class field_type: std::uint16_t {};
 
-using field_type = std::uint16_t;
 constexpr auto byte_field_type = field_type(1u);
 constexpr auto ascii_field_type = field_type(2u);
 constexpr auto short_field_type = field_type(3u);
