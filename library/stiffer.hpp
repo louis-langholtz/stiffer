@@ -70,6 +70,7 @@ constexpr auto slong_field_type = field_type(9);
 constexpr auto srational_field_type = field_type(10);
 constexpr auto float_field_type = field_type(11);
 constexpr auto double_field_type = field_type(12);
+constexpr auto ifd_field_type = field_type(13);
 constexpr auto long8_field_type = field_type{16}; /// BigTIFF type
 constexpr auto slong8_field_type = field_type{17}; /// BigTIFF type
 constexpr auto ifd8_field_type = field_type{18}; /// BigTIFF type

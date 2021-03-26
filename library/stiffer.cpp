@@ -127,6 +127,18 @@ field_value get_field_value(std::istream& in, const T& field, endian byte_order)
         return is_value_field(field)?
         get<undefined_array>(field.value_offset, byte_order, field.count):
         read<undefined_array>(in, byte_order, field.count);
+    case sshort_field_type:
+        return is_value_field(field)?
+        get<sshort_array>(field.value_offset, byte_order, field.count):
+        read<sshort_array>(in, byte_order, field.count);
+    case float_field_type:
+        return is_value_field(field)?
+        get<float_array>(field.value_offset, byte_order, field.count):
+        read<float_array>(in, byte_order, field.count);
+    case slong_field_type:
+        return is_value_field(field)?
+        get<slong_array>(field.value_offset, byte_order, field.count):
+        read<slong_array>(in, byte_order, field.count);
     case long8_field_type:
         return is_value_field(field)?
         get<long8_array>(field.value_offset, byte_order, field.count):
@@ -177,6 +189,10 @@ const char* field_type_to_string(field_type value)
     case srational_field_type: return "srational";
     case float_field_type: return "float";
     case double_field_type: return "double";
+    case ifd_field_type: return "ifd";
+    case long8_field_type: return "long8";
+    case slong8_field_type: return "slong8";
+    case ifd8_field_type: return "ifd8";
     default: break;
     }
     return "unrecognized";
@@ -492,6 +508,7 @@ constexpr auto tile_width_tag = field_tag{322u};
 constexpr auto tile_length_tag = field_tag{323u};
 constexpr auto tile_offsets_tag = field_tag{324u};
 constexpr auto tile_byte_counts_tag = field_tag{325u};
+constexpr auto sub_ifds_tag = field_tag{330u};
 constexpr auto extra_samples_tag = field_tag{338u};
 constexpr auto copyright_tag = field_tag{33432u};
 
@@ -520,6 +537,7 @@ constexpr auto ascii_field_bit = (static_cast<std::uint32_t>(0x1u) << ascii_fiel
 constexpr auto short_field_bit = (static_cast<std::uint32_t>(0x1u) << short_field_type);
 constexpr auto long_field_bit = (static_cast<std::uint32_t>(0x1u) << long_field_type);
 constexpr auto rational_field_bit = (static_cast<std::uint32_t>(0x1u) << rational_field_type);
+constexpr auto ifd_field_bit = (static_cast<std::uint32_t>(0x1u) << ifd_field_type);
 
 } // namespace
 
@@ -562,6 +580,7 @@ const field_definition_map& get_definitions()
         {strip_byte_counts_tag, {"StripByteCounts", short_field_bit|long_field_bit}},
         {strip_offsets_tag, {"StripOffsets", short_field_bit|long_field_bit}},
         {subfile_type_tag, {"SubfileType", short_field_bit}},
+        {sub_ifds_tag, {"SubIFDs", long_field_bit|ifd_field_bit}},
         {t4_options_tag, {"T4Options", long_field_bit, get_long_array_0}},
         {t6_options_tag, {"T6Options", long_field_bit, get_long_array_0}},
         {threshholding_tag, {"Threshholding", short_field_bit, get_short_array_1}},
