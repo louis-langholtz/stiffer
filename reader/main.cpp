@@ -87,19 +87,24 @@ int main(int argc, const char * argv[]) {
             std::cout << ", count=" << size(field.second);
             std::cout << ", value=";
             std::visit(overloaded{
-                [](const std::monostate& arg) {},
+                [](const stiffer::unrecognized_field_value& arg) {},
                 [](const stiffer::ascii_array& arg) { std::cout << std::quoted(arg); },
                 [](const auto& arg) { std::cout << arg; }
             }, field.second);
             std::cout << "\n";
         }
         std::cout << "next IFD = " << ifd.next_image << "\n";
-        const auto image = stiffer::v6::read_image(in, ifd.fields);
-        std::cout << "image width = " << image.buffer.get_width() << "\n";
-        std::cout << "image length = " << image.buffer.get_height() << "\n";
-        std::cout << "image orientation = " << image.orientation << "\n";
-        std::cout << "image photometric interpretation = " << image.photometric_interpretation << "\n";
-        std::cout << "image planar configuration = " << image.planar_configuration << "\n";
+        try {
+            const auto image = stiffer::v6::read_image(in, ifd.fields);
+            std::cout << "image width = " << image.buffer.get_width() << "\n";
+            std::cout << "image length = " << image.buffer.get_height() << "\n";
+            std::cout << "image orientation = " << image.orientation << "\n";
+            std::cout << "image photometric interpretation = " << image.photometric_interpretation << "\n";
+            std::cout << "image planar configuration = " << image.planar_configuration << "\n";
+        }
+        catch (const std::exception& ex) {
+            std::cout << "image read problem: " << ex.what() << "\n";
+        }
         offset = ifd.next_image;
     }
     return 0;

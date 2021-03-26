@@ -113,6 +113,8 @@ using long8_array = std::vector<std::uint64_t>;
 using slong8_array = std::vector<std::int64_t>;
 using ifd8_array = std::vector<ifd8_element>;
 
+using unrecognized_field_value = std::tuple<field_type,std::size_t,undefined_array>;
+
 template <typename T> struct to_field_type;
 template <> struct to_field_type<byte_array> { static const auto value = byte_field_type; };
 template <> struct to_field_type<ascii_array> { static const auto value = ascii_field_type; };
@@ -141,7 +143,7 @@ std::enable_if_t<std::is_unsigned_v<T>, std::vector<std::size_t>> to_size_array(
 }
 
 using field_value = std::variant<
-    std::monostate,
+    unrecognized_field_value,
     byte_array,
     ascii_array,
     short_array,
@@ -166,6 +168,7 @@ constexpr field_type get_field_type(const field_value& value)
 {
     static_assert(std::variant_size_v<field_value> == 17u, "switch setup for 17 types");
     switch (value.index()) {
+    case 0: return std::get<field_type>(std::get<0>(value));
     case 1: return to_field_type<std::decay_t<decltype(std::get<1>(value))>>::value;
     case 2: return to_field_type<std::decay_t<decltype(std::get<2>(value))>>::value;
     case 3: return to_field_type<std::decay_t<decltype(std::get<3>(value))>>::value;
@@ -190,6 +193,7 @@ constexpr std::size_t size(const field_value& value)
 {
     static_assert(std::variant_size_v<field_value> == 17u, "switch setup for 17 types");
     switch (value.index()) {
+    case 0: return std::get<std::size_t>(std::get<0>(value));
     case 1: return std::size(std::get<1>(value));
     case 2: return std::size(std::get<2>(value));
     case 3: return std::size(std::get<3>(value));
@@ -230,9 +234,8 @@ constexpr std::size_t field_type_to_bytesize(field_type value)
     case long8_field_type: return 8u;
     case slong8_field_type: return 8u;
     case ifd8_field_type: return 8u;
-    default: break;
     }
-    return 1u;
+    return 0u;
 }
 
 inline rational byte_swap(const rational& value)

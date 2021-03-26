@@ -156,7 +156,10 @@ field_value get_field_value(std::istream& in, const T& field, endian byte_order)
     case srational_field_type:
         return read<srational_array>(in, byte_order, field.count);
     }
-    return {};
+    auto data = undefined_array{};
+    data.resize(sizeof(field.value_offset));
+    std::memcpy(data.data(), &field.value_offset, sizeof(field.value_offset));
+    return unrecognized_field_value{field.type, field.count, data};
 }
 
 } // namespace
@@ -785,6 +788,8 @@ image read_image(std::istream& in, const field_value_map& fields)
                 std::memcpy(result.buffer.data() + offset, strip.data(), strip.size());
                 offset += strip.size();
                 break;
+            default:
+                throw std::invalid_argument(std::string("unable to decode compression " + std::to_string(compression)));
             }
         }
         return result;
