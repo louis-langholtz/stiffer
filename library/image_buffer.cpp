@@ -6,6 +6,7 @@
 //
 
 #include "image_buffer.hpp"
+#include "stiffer.hpp"
 
 namespace stiffer {
 
@@ -17,6 +18,9 @@ image_buffer::image_buffer(std::size_t width, std::size_t height, const std::vec
 
 void image_buffer::resize(std::size_t width, std::size_t height, const std::vector<std::size_t>& bits_per_sample)
 {
+    width_ = width;
+    height_ = height;
+    bits_per_sample_ = bits_per_sample;
     buffer_.resize(width * height * get_bytes_per_pixel(bits_per_sample));
 }
 
