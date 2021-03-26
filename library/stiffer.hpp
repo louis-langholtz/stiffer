@@ -66,23 +66,29 @@ constexpr auto ascii_field_type = field_type(2u);
 constexpr auto short_field_type = field_type(3u);
 constexpr auto long_field_type = field_type(4u);
 constexpr auto rational_field_type = field_type(5u);
-constexpr auto sbyte_field_type = field_type(6);
-constexpr auto undefined_field_type = field_type(7);
-constexpr auto sshort_field_type = field_type(8);
-constexpr auto slong_field_type = field_type(9);
-constexpr auto srational_field_type = field_type(10);
-constexpr auto float_field_type = field_type(11);
-constexpr auto double_field_type = field_type(12);
-constexpr auto ifd_field_type = field_type(13);
-constexpr auto long8_field_type = field_type{16}; /// BigTIFF type
-constexpr auto slong8_field_type = field_type{17}; /// BigTIFF type
-constexpr auto ifd8_field_type = field_type{18}; /// BigTIFF type
+constexpr auto sbyte_field_type = field_type(6u);
+constexpr auto undefined_field_type = field_type(7u);
+constexpr auto sshort_field_type = field_type(8u);
+constexpr auto slong_field_type = field_type(9u);
+constexpr auto srational_field_type = field_type(10u);
+constexpr auto float_field_type = field_type(11u);
+constexpr auto double_field_type = field_type(12u);
+constexpr auto ifd_field_type = field_type(13u);
+constexpr auto long8_field_type = field_type{16u}; /// BigTIFF type
+constexpr auto slong8_field_type = field_type{17u}; /// BigTIFF type
+constexpr auto ifd8_field_type = field_type{18u}; /// BigTIFF type
 
 /// Undefined element.
 /// @note This is a helper type to help distinguish an undefined element from other
 ///   single byte integer value types.
 enum class undefined_element: std::uint8_t {};
 static_assert(sizeof(undefined_element) == 1u, "undefined_element size must be 1 byte");
+
+/// IFD element.
+/// @note This is a helper type to help distinguish an IFD element from other
+///   4-byte integer value types.
+enum class ifd_element: std::uint32_t {};
+static_assert(sizeof(ifd_element) == 4u, "ifd_element size must be 4 bytes");
 
 /// IFD8 element.
 /// @note This is a helper type to help distinguish an IFD8 element from other
@@ -102,9 +108,28 @@ using slong_array = std::vector<std::int32_t>;
 using srational_array = std::vector<srational>;
 using float_array = std::vector<float>;
 using double_array = std::vector<double>;
+using ifd_array = std::vector<ifd_element>;
 using long8_array = std::vector<std::uint64_t>;
 using slong8_array = std::vector<std::int64_t>;
 using ifd8_array = std::vector<ifd8_element>;
+
+template <typename T> struct to_field_type;
+template <> struct to_field_type<byte_array> { static const auto value = byte_field_type; };
+template <> struct to_field_type<ascii_array> { static const auto value = ascii_field_type; };
+template <> struct to_field_type<short_array> { static const auto value = short_field_type; };
+template <> struct to_field_type<long_array> { static const auto value = long_field_type; };
+template <> struct to_field_type<rational_array> { static const auto value = rational_field_type; };
+template <> struct to_field_type<sbyte_array> { static const auto value = sbyte_field_type; };
+template <> struct to_field_type<undefined_array> { static const auto value = undefined_field_type; };
+template <> struct to_field_type<sshort_array> { static const auto value = sshort_field_type; };
+template <> struct to_field_type<slong_array> { static const auto value = slong_field_type; };
+template <> struct to_field_type<srational_array> { static const auto value = srational_field_type; };
+template <> struct to_field_type<float_array> { static const auto value = float_field_type; };
+template <> struct to_field_type<double_array> { static const auto value = double_field_type; };
+template <> struct to_field_type<ifd_array> { static const auto value = ifd_field_type; };
+template <> struct to_field_type<long8_array> { static const auto value = long8_field_type; };
+template <> struct to_field_type<slong8_array> { static const auto value = slong8_field_type; };
+template <> struct to_field_type<ifd8_array> { static const auto value = ifd8_field_type; };
 
 template <typename T>
 std::enable_if_t<std::is_unsigned_v<T>, std::vector<std::size_t>> to_size_array(const std::vector<T>& values)
@@ -129,6 +154,7 @@ using field_value = std::variant<
     srational_array,
     float_array,
     double_array,
+    ifd_array,
     long8_array,
     slong8_array,
     ifd8_array
@@ -136,13 +162,33 @@ using field_value = std::variant<
 
 std::vector<std::size_t> as_size_array(const field_value& value);
 
-constexpr field_type to_field_type(const field_value& value)
+constexpr field_type get_field_type(const field_value& value)
 {
-    return static_cast<field_type>(value.index());
+    static_assert(std::variant_size_v<field_value> == 17u, "switch setup for 17 types");
+    switch (value.index()) {
+    case 1: return to_field_type<std::decay_t<decltype(std::get<1>(value))>>::value;
+    case 2: return to_field_type<std::decay_t<decltype(std::get<2>(value))>>::value;
+    case 3: return to_field_type<std::decay_t<decltype(std::get<3>(value))>>::value;
+    case 4: return to_field_type<std::decay_t<decltype(std::get<4>(value))>>::value;
+    case 5: return to_field_type<std::decay_t<decltype(std::get<5>(value))>>::value;
+    case 6: return to_field_type<std::decay_t<decltype(std::get<6>(value))>>::value;
+    case 7: return to_field_type<std::decay_t<decltype(std::get<7>(value))>>::value;
+    case 8: return to_field_type<std::decay_t<decltype(std::get<8>(value))>>::value;
+    case 9: return to_field_type<std::decay_t<decltype(std::get<9>(value))>>::value;
+    case 10: return to_field_type<std::decay_t<decltype(std::get<10>(value))>>::value;
+    case 11: return to_field_type<std::decay_t<decltype(std::get<11>(value))>>::value;
+    case 12: return to_field_type<std::decay_t<decltype(std::get<12>(value))>>::value;
+    case 13: return to_field_type<std::decay_t<decltype(std::get<13>(value))>>::value;
+    case 14: return to_field_type<std::decay_t<decltype(std::get<14>(value))>>::value;
+    case 15: return to_field_type<std::decay_t<decltype(std::get<15>(value))>>::value;
+    case 16: return to_field_type<std::decay_t<decltype(std::get<16>(value))>>::value;
+    }
+    return field_type(0);
 }
 
 constexpr std::size_t size(const field_value& value)
 {
+    static_assert(std::variant_size_v<field_value> == 17u, "switch setup for 17 types");
     switch (value.index()) {
     case 1: return std::size(std::get<1>(value));
     case 2: return std::size(std::get<2>(value));
@@ -159,6 +205,7 @@ constexpr std::size_t size(const field_value& value)
     case 13: return std::size(std::get<13>(value));
     case 14: return std::size(std::get<14>(value));
     case 15: return std::size(std::get<15>(value));
+    case 16: return std::size(std::get<16>(value));
     }
     return 0u;
 }
@@ -186,16 +233,6 @@ constexpr std::size_t field_type_to_bytesize(field_type value)
     default: break;
     }
     return 1u;
-}
-
-inline undefined_element byte_swap(undefined_element value)
-{
-    return value;
-}
-
-inline ifd8_element byte_swap(ifd8_element value)
-{
-    return static_cast<ifd8_element>(byte_swap(static_cast<std::uint64_t>(value)));
 }
 
 inline rational byte_swap(const rational& value)

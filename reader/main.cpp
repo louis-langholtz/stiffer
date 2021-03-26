@@ -22,9 +22,16 @@ std::ostream& operator<< (std::ostream& os, const stiffer::rational& value)
     return os;
 }
 
-std::ostream& operator<< (std::ostream& os, const stiffer::undefined_element& value)
+std::ostream& operator<< (std::ostream& os, const stiffer::srational& value)
 {
-    os << static_cast<std::underlying_type_t<stiffer::undefined_element>>(value);
+    os << value.numerator << "/" << value.denominator;
+    return os;
+}
+
+template <typename T>
+std::enable_if_t<std::is_enum_v<T>, std::ostream&> operator<< (std::ostream& os, const T& value)
+{
+    os << stiffer::to_underlying(value);
     return os;
 }
 
@@ -74,15 +81,15 @@ int main(int argc, const char * argv[]) {
             if (found) {
                 std::cout << "(" << found->name << ")";
             }
-            const auto field_type = to_field_type(field.second);
+            const auto field_type = get_field_type(field.second);
             std::cout << ", type=" << to_underlying(field_type);
             std::cout << "(" << stiffer::field_type_to_string(field_type) << ")";
             std::cout << ", count=" << size(field.second);
             std::cout << ", value=";
             std::visit(overloaded{
                 [](const std::monostate& arg) {},
-                [](const stiffer::byte_array& arg) { std::cout << arg; },
                 [](const stiffer::ascii_array& arg) { std::cout << std::quoted(arg); },
+                [](const stiffer::byte_array& arg) { std::cout << arg; },
                 [](const stiffer::short_array& arg) { std::cout << arg; },
                 [](const stiffer::long_array& arg) { std::cout << arg; },
                 [](const stiffer::rational_array& arg) { std::cout << arg; },
@@ -90,12 +97,13 @@ int main(int argc, const char * argv[]) {
                 [](const stiffer::undefined_array& arg) { std::cout << arg; },
                 [](const stiffer::sshort_array& arg) { std::cout << arg; },
                 [](const stiffer::slong_array& arg) { std::cout << arg; },
-                [](const stiffer::srational_array& arg) {},
+                [](const stiffer::srational_array& arg) {std::cout << arg;},
                 [](const stiffer::float_array& arg) { std::cout << arg; },
                 [](const stiffer::double_array& arg) { std::cout << arg; },
+                [](const stiffer::ifd_array& arg) { std::cout << arg; },
                 [](const stiffer::long8_array& arg) { std::cout << arg; },
                 [](const stiffer::slong8_array& arg) { std::cout << arg; },
-                [](const stiffer::ifd8_array& arg) {}
+                [](const stiffer::ifd8_array& arg) { std::cout << arg; }
             }, field.second);
             std::cout << "\n";
         }

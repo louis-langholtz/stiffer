@@ -514,8 +514,7 @@ constexpr auto copyright_tag = field_tag{33432u};
 
 field_value bits_per_sample_value_default(const field_value_map& fields)
 {
-    const auto samples_per_pixel = get_samples_per_pixel(fields);
-    return short_array(samples_per_pixel, 1u);
+    return short_array(get_samples_per_pixel(fields), 1u);
 }
 
 field_value max_sample_value_default(const field_value_map& fields)
