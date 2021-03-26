@@ -89,21 +89,7 @@ int main(int argc, const char * argv[]) {
             std::visit(overloaded{
                 [](const std::monostate& arg) {},
                 [](const stiffer::ascii_array& arg) { std::cout << std::quoted(arg); },
-                [](const stiffer::byte_array& arg) { std::cout << arg; },
-                [](const stiffer::short_array& arg) { std::cout << arg; },
-                [](const stiffer::long_array& arg) { std::cout << arg; },
-                [](const stiffer::rational_array& arg) { std::cout << arg; },
-                [](const stiffer::sbyte_array& arg) { std::cout << arg; },
-                [](const stiffer::undefined_array& arg) { std::cout << arg; },
-                [](const stiffer::sshort_array& arg) { std::cout << arg; },
-                [](const stiffer::slong_array& arg) { std::cout << arg; },
-                [](const stiffer::srational_array& arg) {std::cout << arg;},
-                [](const stiffer::float_array& arg) { std::cout << arg; },
-                [](const stiffer::double_array& arg) { std::cout << arg; },
-                [](const stiffer::ifd_array& arg) { std::cout << arg; },
-                [](const stiffer::long8_array& arg) { std::cout << arg; },
-                [](const stiffer::slong8_array& arg) { std::cout << arg; },
-                [](const stiffer::ifd8_array& arg) { std::cout << arg; }
+                [](const auto& arg) { std::cout << arg; }
             }, field.second);
             std::cout << "\n";
         }
