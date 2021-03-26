@@ -182,12 +182,12 @@ const char* field_type_to_string(field_type value)
     return "unrecognized";
 }
 
-void add_defaults(field_value_map& map, const field_definition_map& definitions)
+void add_defaults(field_value_map& fields, const field_definition_map& definitions)
 {
     for (auto&& def: definitions) {
         if (def.second.defaulter) {
-            if (const auto it = map.find(def.first); it == map.end()) {
-                map.insert({def.first, def.second.defaulter(map)});
+            if (const auto it = fields.find(def.first); it == fields.end()) {
+                fields.insert({def.first, def.second.defaulter(fields)});
             }
         }
     }
@@ -244,9 +244,9 @@ file_context get_file_context(std::istream& is)
     throw std::invalid_argument("unhandled file version");
 }
 
-field_value get(const field_value_map& map, field_tag tag, const field_value& fallback)
+field_value get(const field_value_map& fields, field_tag tag, const field_value& fallback)
 {
-    if (const auto it = find(map, tag); it) {
+    if (const auto it = find(fields, tag); it) {
         return *it;
     }
     return fallback;
@@ -286,6 +286,23 @@ void decompress_packed_bits()
     for (;;) {
 
     }
+}
+
+std::vector<std::size_t> as_size_array(const field_value& value)
+{
+    if (const auto values = std::get_if<long8_array>(&value); values) {
+        return to_size_array(*values);
+    }
+    if (const auto values = std::get_if<long_array>(&value); values) {
+        return to_size_array(*values);
+    }
+    if (const auto values = std::get_if<short_array>(&value); values) {
+        return to_size_array(*values);
+    }
+    if (const auto values = std::get_if<byte_array>(&value); values) {
+        return to_size_array(*values);
+    }
+    throw std::invalid_argument("not an unsigned integral array type");
 }
 
 namespace classic {
@@ -478,17 +495,17 @@ constexpr auto tile_byte_counts_tag = field_tag{325u};
 constexpr auto extra_samples_tag = field_tag{338u};
 constexpr auto copyright_tag = field_tag{33432u};
 
-field_value bits_per_sample_value_default(const field_value_map& map)
+field_value bits_per_sample_value_default(const field_value_map& fields)
 {
-    const auto samples_per_pixel = get_samples_per_pixel(map);
+    const auto samples_per_pixel = get_samples_per_pixel(fields);
     return short_array(samples_per_pixel, 1u);
 }
 
-field_value max_sample_value_default(const field_value_map& map)
+field_value max_sample_value_default(const field_value_map& fields)
 {
     /*, Default is 2**(BitsPerSample) - 1 */
     const auto& definitions = get_definitions();
-    const auto bits_per_sample = get(map, bits_per_sample_tag, definitions);
+    const auto bits_per_sample = get(fields, bits_per_sample_tag, definitions);
     if (const auto entries = std::get_if<short_array>(&bits_per_sample); entries) {
         auto result = short_array{};
         for (auto&& entry: *entries) {
@@ -508,7 +525,7 @@ constexpr auto rational_field_bit = (static_cast<std::uint32_t>(0x1u) << rationa
 
 const field_definition_map& get_definitions()
 {
-    static const auto map = field_definition_map{
+    static const auto definitions = field_definition_map{
         {artist_tag, {"Artist", ascii_field_bit}},
         {bits_per_sample_tag, {"BitsPerSample", short_field_bit, bits_per_sample_value_default}},
         {cell_length_tag, {"CellLength", short_field_bit}},
@@ -557,77 +574,77 @@ const field_definition_map& get_definitions()
         {y_position_tag, {"YPosition", rational_field_bit}},
         {y_resolution_tag, {"YResolution", rational_field_bit}},
     };
-    return map;
+    return definitions;
 }
 
-std::size_t get_compression(const field_value_map& map)
+std::size_t get_compression(const field_value_map& fields)
 {
-    return get_unsigned_front(map, compression_tag);
+    return get_unsigned_front(fields, compression_tag);
 }
 
-std::size_t get_image_length(const field_value_map& map)
+std::size_t get_image_length(const field_value_map& fields)
 {
-    return get_unsigned_front(map, image_length_tag);
+    return get_unsigned_front(fields, image_length_tag);
 }
 
-std::size_t get_image_width(const field_value_map& map)
+std::size_t get_image_width(const field_value_map& fields)
 {
-    return get_unsigned_front(map, image_width_tag);
+    return get_unsigned_front(fields, image_width_tag);
 }
 
-std::size_t get_samples_per_pixel(const field_value_map& map)
+std::size_t get_samples_per_pixel(const field_value_map& fields)
 {
-    return get_unsigned_front(map, samples_per_pixel_tag);
+    return get_unsigned_front(fields, samples_per_pixel_tag);
 }
 
-std::size_t get_rows_per_strip(const field_value_map& map)
+std::size_t get_rows_per_strip(const field_value_map& fields)
 {
-    return get_unsigned_front(map, rows_per_strip_tag);
+    return get_unsigned_front(fields, rows_per_strip_tag);
 }
 
-std::size_t get_orientation(const field_value_map& map)
+std::size_t get_orientation(const field_value_map& fields)
 {
-    return get_unsigned_front(map, orientation_tag);
+    return get_unsigned_front(fields, orientation_tag);
 }
 
-std::size_t get_photometric_interpretation(const field_value_map& map)
+std::size_t get_photometric_interpretation(const field_value_map& fields)
 {
-    return get_unsigned_front(map, photometric_interpretation_tag);
+    return get_unsigned_front(fields, photometric_interpretation_tag);
 }
 
-std::size_t get_planar_configuraion(const field_value_map& map)
+std::size_t get_planar_configuraion(const field_value_map& fields)
 {
-    return get_unsigned_front(map, planar_configuration_tag);
+    return get_unsigned_front(fields, planar_configuration_tag);
 }
 
-std::size_t get_resolution_unit(const field_value_map& map)
+std::size_t get_resolution_unit(const field_value_map& fields)
 {
-    return get_unsigned_front(map, resolution_unit_tag);
+    return get_unsigned_front(fields, resolution_unit_tag);
 }
 
-std::size_t get_x_resolution(const field_value_map& map)
+std::size_t get_x_resolution(const field_value_map& fields)
 {
-    return get_unsigned_front(map, x_resolution_tag);
+    return get_unsigned_front(fields, x_resolution_tag);
 }
 
-std::size_t get_y_resolution(const field_value_map& map)
+std::size_t get_y_resolution(const field_value_map& fields)
 {
-    return get_unsigned_front(map, y_resolution_tag);
+    return get_unsigned_front(fields, y_resolution_tag);
 }
 
-std::size_t get_tile_length(const field_value_map& map)
+std::size_t get_tile_length(const field_value_map& fields)
 {
-    return get_unsigned_front(map, tile_length_tag);
+    return get_unsigned_front(fields, tile_length_tag);
 }
 
-std::size_t get_tile_width(const field_value_map& map)
+std::size_t get_tile_width(const field_value_map& fields)
 {
-    return get_unsigned_front(map, tile_width_tag);
+    return get_unsigned_front(fields, tile_width_tag);
 }
 
-std::size_t get_strip_byte_count(const field_value_map& map, std::size_t index)
+std::size_t get_strip_byte_count(const field_value_map& fields, std::size_t index)
 {
-    const auto found = find(map, strip_byte_counts_tag);
+    const auto found = find(fields, strip_byte_counts_tag);
     if (!found) {
         throw std::invalid_argument("strip byte counts entry missing from ifd");
     }
@@ -638,9 +655,9 @@ std::size_t get_strip_byte_count(const field_value_map& map, std::size_t index)
     throw std::invalid_argument("strip byte counts entry type not long nor short");
 }
 
-std::size_t get_strip_offset(const field_value_map& map, std::size_t index)
+std::size_t get_strip_offset(const field_value_map& fields, std::size_t index)
 {
-    const auto found = find(map, strip_offsets_tag);
+    const auto found = find(fields, strip_offsets_tag);
     if (!found) {
         throw std::invalid_argument("strip offsets entry missing from ifd");
     }
@@ -651,9 +668,9 @@ std::size_t get_strip_offset(const field_value_map& map, std::size_t index)
     throw std::invalid_argument("strip offsets entry type not long nor short");
 }
 
-std::size_t get_tile_byte_count(const field_value_map& map, std::size_t index)
+std::size_t get_tile_byte_count(const field_value_map& fields, std::size_t index)
 {
-    const auto found = find(map, tile_byte_counts_tag);
+    const auto found = find(fields, tile_byte_counts_tag);
     if (!found) {
         throw std::invalid_argument("tile byte counts entry missing from ifd");
     }
@@ -664,9 +681,9 @@ std::size_t get_tile_byte_count(const field_value_map& map, std::size_t index)
     throw std::invalid_argument("tile byte counts entry type not long nor short");
 }
 
-std::size_t get_tile_offset(const field_value_map& map, std::size_t index)
+std::size_t get_tile_offset(const field_value_map& fields, std::size_t index)
 {
-    const auto found = find(map, tile_offsets_tag);
+    const auto found = find(fields, tile_offsets_tag);
     if (!found) {
         throw std::invalid_argument("tile offsets entry missing from ifd");
     }
@@ -677,26 +694,84 @@ std::size_t get_tile_offset(const field_value_map& map, std::size_t index)
     throw std::invalid_argument("tile offsets entry type not long nor short");
 }
 
-field_value get_bits_per_sample(const field_value_map& map)
+field_value get_bits_per_sample(const field_value_map& fields)
 {
-    return get(map, bits_per_sample_tag, get_definitions());
+    return get(fields, bits_per_sample_tag, get_definitions());
 }
 
-undefined_array read_strip(std::istream& is, const image_file_directory& ifd, std::size_t strip)
+undefined_array read_strip(std::istream& is, const field_value_map& fields, std::size_t index)
 {
     auto bytes = undefined_array{};
-    const auto strip_byte_count = get_strip_byte_count(ifd.fields, strip);
-    const auto strip_offset = get_strip_offset(ifd.fields, strip);
-    bytes.resize(strip_byte_count);
-    is.seekg(strip_offset);
+    const auto byte_count = get_strip_byte_count(fields, index);
+    const auto offset = get_strip_offset(fields, index);
+    bytes.resize(byte_count);
+    is.seekg(offset);
     if (!is.good()) {
-        throw std::runtime_error("can't seek to strip offset");
+        throw std::runtime_error("can't seek to offset");
     }
     is.read(reinterpret_cast<char*>(bytes.data()), bytes.size());
     if (!is.good()) {
-        throw std::runtime_error("can't read strip");
+        throw std::runtime_error("can't read data");
     }
     return bytes;
+}
+
+undefined_array read_tile(std::istream& is, const field_value_map& fields, std::size_t index)
+{
+    auto bytes = undefined_array{};
+    const auto byte_count = get_tile_byte_count(fields, index);
+    const auto offset = get_tile_offset(fields, index);
+    bytes.resize(byte_count);
+    is.seekg(offset);
+    if (!is.good()) {
+        throw std::runtime_error("can't seek to offset");
+    }
+    is.read(reinterpret_cast<char*>(bytes.data()), bytes.size());
+    if (!is.good()) {
+        throw std::runtime_error("can't read data");
+    }
+    return bytes;
+}
+
+bool has_striped_image(const field_value_map& fields)
+{
+    const auto bytes_found = find(fields, strip_byte_counts_tag);
+    const auto offsets_found = find(fields, strip_byte_counts_tag);
+    return bytes_found && offsets_found;
+}
+
+bool has_tiled_image(const field_value_map& fields)
+{
+    const auto bytes_found = find(fields, tile_byte_counts_tag);
+    const auto offsets_found = find(fields, tile_offsets_tag);
+    return bytes_found && offsets_found;
+}
+
+image read_image(std::istream& in, const field_value_map& fields)
+{
+    if (has_striped_image(fields)) {
+        auto result = image{};
+        result.buffer.resize(get_image_width(fields),
+                             get_image_length(fields),
+                             as_size_array(get_bits_per_sample(fields)));
+        result.photometric_interpretation = get_photometric_interpretation(fields);
+        result.orientation = get_orientation(fields);
+        result.planar_configuration = get_planar_configuraion(fields);
+        const auto compression = get_compression(fields);
+        const auto max = get_strips_per_image(fields);
+        std::size_t offset = 0;
+        for (auto i = static_cast<std::size_t>(0); i < max; ++i) {
+            const auto strip = read_strip(in, fields, i);
+            switch (compression) {
+            case 1u:
+                std::memcpy(result.buffer.data() + offset, strip.data(), strip.size());
+                offset += strip.size();
+                break;
+            }
+        }
+        return result;
+    }
+    return image{};
 }
 
 } // namespace stiffer::version_6

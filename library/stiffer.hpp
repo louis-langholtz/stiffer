@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "endian.hpp"
+#include "image_buffer.hpp"
 #include "rational.hpp"
 #include "srational.hpp"
 
@@ -101,6 +102,15 @@ using long8_array = std::vector<std::uint64_t>;
 using slong8_array = std::vector<std::int64_t>;
 using ifd8_array = std::vector<ifd8_element>;
 
+template <typename T>
+std::enable_if_t<std::is_unsigned_v<T>, std::vector<std::size_t>> to_size_array(const std::vector<T>& values)
+{
+    std::vector<std::size_t> result;
+    result.reserve(values.size());
+    result.assign(values.begin(), values.end());
+    return result;
+}
+
 using field_value = std::variant<
     std::monostate,
     byte_array,
@@ -119,6 +129,8 @@ using field_value = std::variant<
     slong8_array,
     ifd8_array
 >;
+
+std::vector<std::size_t> as_size_array(const field_value& value);
 
 constexpr field_type to_field_type(const field_value& value)
 {
@@ -233,26 +245,26 @@ inline field_value get_long_array_max(const field_value_map&)
     return long_array{static_cast<std::uint32_t>(-1)};
 }
 
-void add_defaults(field_value_map& map, const field_definition_map& definitions);
+void add_defaults(field_value_map& fields, const field_definition_map& definitions);
 
 template <typename M>
-const typename M::mapped_type* find(const M& map, const typename M::key_type& key)
+const typename M::mapped_type* find(const M& fields, const typename M::key_type& key)
 {
-    if (const auto it = map.find(key); it != map.end()) {
+    if (const auto it = fields.find(key); it != fields.end()) {
         return &it->second;
     }
     return nullptr;
 }
 
-field_value get(const field_value_map& map, field_tag tag,
+field_value get(const field_value_map& fields, field_tag tag,
                 const field_value& fallback = {});
 field_value get(const field_definition_map& definitions, field_tag tag,
                 const field_value_map& values);
 
 inline
-field_value get(const field_value_map& map, field_tag tag, const field_definition_map& definitions)
+field_value get(const field_value_map& fields, field_tag tag, const field_definition_map& definitions)
 {
-    return get(map, tag, get(definitions, tag, map));
+    return get(fields, tag, get(definitions, tag, fields));
 }
 
 std::size_t get_unsigned_front(const field_value& result);
@@ -273,6 +285,8 @@ struct image_file_directory
 };
 
 void decompress_packed_bits();
+
+std::vector<std::size_t> as_size_array(const field_value& value);
 
 } // namespace stiffer
 
@@ -296,39 +310,44 @@ namespace stiffer::v6 {
 
 const field_definition_map& get_definitions();
 
-inline std::size_t get_unsigned_front(const field_value_map& map, field_tag tag)
+inline std::size_t get_unsigned_front(const field_value_map& fields, field_tag tag)
 {
-    return get_unsigned_front(get(map, tag, get_definitions()));
+    return get_unsigned_front(get(fields, tag, get_definitions()));
 }
 
-std::size_t get_compression(const field_value_map& map);
-std::size_t get_image_length(const field_value_map& map);
-std::size_t get_image_width(const field_value_map& map);
-std::size_t get_samples_per_pixel(const field_value_map& map);
-std::size_t get_rows_per_strip(const field_value_map& map);
-std::size_t get_orientation(const field_value_map& map);
-std::size_t get_photometric_interpretation(const field_value_map& map);
-std::size_t get_planar_configuraion(const field_value_map& map);
-std::size_t get_resolution_unit(const field_value_map& map);
-std::size_t get_x_resolution(const field_value_map& map);
-std::size_t get_y_resolution(const field_value_map& map);
-std::size_t get_tile_length(const field_value_map& map);
-std::size_t get_tile_width(const field_value_map& map);
+std::size_t get_compression(const field_value_map& fields);
+std::size_t get_image_length(const field_value_map& fields);
+std::size_t get_image_width(const field_value_map& fields);
+std::size_t get_samples_per_pixel(const field_value_map& fields);
+std::size_t get_rows_per_strip(const field_value_map& fields);
+std::size_t get_orientation(const field_value_map& fields);
+std::size_t get_photometric_interpretation(const field_value_map& fields);
+std::size_t get_planar_configuraion(const field_value_map& fields);
+std::size_t get_resolution_unit(const field_value_map& fields);
+std::size_t get_x_resolution(const field_value_map& fields);
+std::size_t get_y_resolution(const field_value_map& fields);
+std::size_t get_tile_length(const field_value_map& fields);
+std::size_t get_tile_width(const field_value_map& fields);
 
-inline std::size_t get_strips_per_image(const field_value_map& map)
+inline std::size_t get_strips_per_image(const field_value_map& fields)
 {
-    const auto rows_per_strip = get_rows_per_strip(map);
-    return (get_image_length(map) + rows_per_strip - 1u) / rows_per_strip;
+    const auto rows_per_strip = get_rows_per_strip(fields);
+    return (get_image_length(fields) + rows_per_strip - 1u) / rows_per_strip;
 }
 
-std::size_t get_strip_byte_count(const field_value_map& map, std::size_t index);
-std::size_t get_strip_offset(const field_value_map& map, std::size_t index);
-std::size_t get_tile_byte_count(const field_value_map& map, std::size_t index);
-std::size_t get_tile_offset(const field_value_map& map, std::size_t index);
+field_value get_bits_per_sample(const field_value_map& fields);
 
-field_value get_bits_per_sample(const field_value_map& map);
+bool has_striped_image(const field_value_map& fields);
+std::size_t get_strip_byte_count(const field_value_map& fields, std::size_t index);
+std::size_t get_strip_offset(const field_value_map& fields, std::size_t index);
+undefined_array read_strip(std::istream& is, const field_value_map& fields, std::size_t index);
 
-undefined_array read_strip(std::istream& is, const image_file_directory& ifd, std::size_t strip);
+bool has_tiled_image(const field_value_map& fields);
+std::size_t get_tile_byte_count(const field_value_map& fields, std::size_t index);
+std::size_t get_tile_offset(const field_value_map& fields, std::size_t index);
+undefined_array read_tile(std::istream& is, const field_value_map& fields, std::size_t index);
+
+image read_image(std::istream& in, const field_value_map& fields);
 
 } // namespace stiffer::version_6
 
