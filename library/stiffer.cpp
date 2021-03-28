@@ -92,6 +92,12 @@ std::enable_if_t<std::is_unsigned_v<U>, T> get(U in, endian from_order, std::siz
 }
 
 template <typename T>
+constexpr bool is_value_field(const T& field)
+{
+    return (field.count == 0u) || (field_type_to_bytesize(field.type) <= (sizeof(field.value_offset) / field.count));
+}
+
+template <typename T>
 field_value get_field_value(std::istream& in, const T& field, endian byte_order)
 {
     if (!is_value_field(field)) {
@@ -160,6 +166,39 @@ field_value get_field_value(std::istream& in, const T& field, endian byte_order)
     data.resize(sizeof(field.value_offset));
     std::memcpy(data.data(), &field.value_offset, sizeof(field.value_offset));
     return unrecognized_field_value{field.type, field.count, data};
+}
+
+template <typename T>
+bool seek_less_than(const T& lhs, const T& rhs)
+{
+    if (is_value_field(lhs) && is_value_field(rhs)) {
+        return &lhs < &rhs;
+    }
+    if (is_value_field(lhs)) {
+        return true;
+    }
+    if (is_value_field(rhs)) {
+        return false;
+    }
+    return lhs.value_offset < rhs.value_offset;
+}
+
+template <typename directory_count, typename field_entries, typename file_offset>
+image_file_directory get_ifd(std::istream& in, std::size_t at, endian byte_order)
+{
+    field_value_map field_map;
+    in.seekg(at);
+    if (!in.good()) {
+        throw std::runtime_error("can't seek to given offet");
+    }
+    const auto num_fields = read<directory_count>(in, byte_order);
+    auto fields = read<field_entries>(in, byte_order, num_fields);
+    const auto next_ifd_offset = read<file_offset>(in, byte_order);
+    std::sort(fields.begin(), fields.end(), seek_less_than<typename field_entries::value_type>);
+    for (auto&& field: fields) {
+        field_map[field.tag] = get_field_value(in, field, byte_order);
+    }
+    return image_file_directory{field_map, next_ifd_offset};
 }
 
 } // namespace
@@ -234,7 +273,7 @@ file_context get_file_context(std::istream& is)
     const auto fv = to_file_version(version_number);
     switch (fv) {
     case file_version::classic: {
-        const auto offset = read<std::uint32_t>(is, *endian_found, false);
+        const auto offset = read<classic::file_offset>(is, *endian_found, false);
         if (!is.good()) {
             throw std::runtime_error("can't read initial offset");
         }
@@ -253,7 +292,7 @@ file_context get_file_context(std::istream& is)
         if (!is.good()) {
             throw std::runtime_error("can't read header padding");
         }
-        const auto offset = read<std::uint64_t>(is, *endian_found, false);
+        const auto offset = read<bigtiff::file_offset>(is, *endian_found, false);
         if (!is.good()) {
             throw std::runtime_error("can't read initial offset");
         }
@@ -334,7 +373,7 @@ struct field_entry {
     field_tag tag;
     field_type type;
     field_count count; /// Count of the indicated type.
-    field_offset value_offset; /// Offset in bytes to the first value.
+    file_offset value_offset; /// Offset in bytes to the first value.
 };
 static_assert(sizeof(field_entry) == 12u, "field_entry size must be 12 bytes");
 
@@ -352,42 +391,11 @@ constexpr field_entry byte_swap(const field_entry& value)
     };
 }
 
-constexpr bool is_value_field(const field_entry& field)
-{
-    return field_type_to_bytesize(field.type) <= (sizeof(field_entry::value_offset) / field.count);
-}
-
-bool seek_less_than(const field_entry& lhs, const field_entry& rhs)
-{
-    if (is_value_field(lhs) && is_value_field(rhs)) {
-        return &lhs < &rhs;
-    }
-    if (is_value_field(lhs)) {
-        return true;
-    }
-    if (is_value_field(rhs)) {
-        return false;
-    }
-    return lhs.value_offset < rhs.value_offset;
-}
-
 } // namespace
 
 image_file_directory get_image_file_directory(std::istream& in, std::size_t at, endian byte_order)
 {
-    field_value_map field_map;
-    in.seekg(at);
-    if (!in.good()) {
-        throw std::runtime_error("can't seek to given offet");
-    }
-    const auto num_fields = read<std::uint16_t>(in, byte_order);
-    auto fields = read<field_entries>(in, byte_order, num_fields);
-    const auto next_ifd_offset = read<std::uint32_t>(in, byte_order);
-    std::sort(fields.begin(), fields.end(), seek_less_than);
-    for (auto&& field: fields) {
-        field_map[field.tag] = get_field_value(in, field, byte_order);
-    }
-    return image_file_directory{field_map, next_ifd_offset};
+    return get_ifd<directory_count, field_entries, file_offset>(in, at, byte_order);
 }
 
 } // namespace classic
@@ -402,7 +410,7 @@ struct field_entry {
     field_tag tag;
     field_type type;
     field_count count; /// Count of the indicated type.
-    field_offset value_offset; /// Offset in bytes to the first value.
+    file_offset value_offset; /// Offset in bytes to the first value.
 };
 static_assert(sizeof(field_entry) == 20u, "field_entry size must be 20 bytes");
 
@@ -420,42 +428,11 @@ constexpr field_entry byte_swap(const field_entry& value)
     };
 }
 
-constexpr bool is_value_field(const field_entry& field)
-{
-    return field_type_to_bytesize(field.type) <= (sizeof(field_entry::value_offset) / field.count);
-}
-
-bool seek_less_than(const field_entry& lhs, const field_entry& rhs)
-{
-    if (is_value_field(lhs) && is_value_field(rhs)) {
-        return &lhs < &rhs;
-    }
-    if (is_value_field(lhs)) {
-        return true;
-    }
-    if (is_value_field(rhs)) {
-        return false;
-    }
-    return lhs.value_offset < rhs.value_offset;
-}
-
 } // namespace
 
 image_file_directory get_image_file_directory(std::istream& in, std::size_t at, endian byte_order)
 {
-    field_value_map field_map;
-    in.seekg(at);
-    if (!in.good()) {
-        throw std::runtime_error("can't seek to given offet");
-    }
-    const auto num_fields = read<std::uint64_t>(in, byte_order);
-    auto fields = read<field_entries>(in, byte_order, num_fields);
-    const auto next_ifd_offset = read<std::uint64_t>(in, byte_order);
-    std::sort(fields.begin(), fields.end(), seek_less_than);
-    for (auto&& field: fields) {
-        field_map[field.tag] = get_field_value(in, field, byte_order);
-    }
-    return image_file_directory{field_map, next_ifd_offset};
+    return get_ifd<directory_count, field_entries, file_offset>(in, at, byte_order);
 }
 
 } // namespace bigtiff

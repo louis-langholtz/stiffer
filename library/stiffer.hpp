@@ -336,16 +336,18 @@ std::vector<std::size_t> as_size_array(const field_value& value);
 
 namespace stiffer::classic {
 
+using directory_count = std::uint16_t;
 using field_count = std::uint32_t;
-using field_offset = std::uint32_t;
+using file_offset = std::uint32_t;
 image_file_directory get_image_file_directory(std::istream& is, std::size_t at, endian byte_order);
 
 } // stiffer::classic
 
 namespace stiffer::bigtiff {
 
+using directory_count = std::uint64_t;
 using field_count = std::uint64_t;
-using field_offset = std::uint64_t;
+using file_offset = std::uint64_t;
 image_file_directory get_image_file_directory(std::istream& in, std::size_t at, endian byte_order);
 
 } // stiffer::bigtiff
