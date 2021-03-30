@@ -10,6 +10,7 @@
 #include <fstream>
 
 #include "../library/stiffer.hpp"
+#include "../library/v6.hpp"
 
 // helper type for the visitor #4
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
