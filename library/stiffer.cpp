@@ -443,55 +443,6 @@ namespace stiffer::v6 {
 
 namespace {
 
-constexpr auto new_subfile_type_tag = field_tag{254u};
-constexpr auto subfile_type_tag = field_tag{255u};
-constexpr auto image_width_tag = field_tag{256u};
-constexpr auto image_length_tag = field_tag{257u};
-constexpr auto bits_per_sample_tag = field_tag{258u};
-constexpr auto compression_tag = field_tag{259u};
-constexpr auto photometric_interpretation_tag = field_tag{262u};
-constexpr auto threshholding_tag = field_tag{263u};
-constexpr auto cell_width_tag = field_tag{264u};
-constexpr auto cell_length_tag = field_tag{265u};
-constexpr auto fill_order_tag = field_tag{266u};
-constexpr auto document_name_tag = field_tag{269u};
-constexpr auto image_description_tag = field_tag{270u};
-constexpr auto make_tag = field_tag{271u};
-constexpr auto model_tag = field_tag{272u};
-constexpr auto strip_offsets_tag = field_tag{273u};
-constexpr auto orientation_tag = field_tag{274u};
-constexpr auto samples_per_pixel_tag = field_tag{277u};
-constexpr auto rows_per_strip_tag = field_tag{278u};
-constexpr auto strip_byte_counts_tag = field_tag{279u};
-constexpr auto min_sample_value_tag = field_tag{280u};
-constexpr auto max_sample_value_tag = field_tag{281u};
-constexpr auto x_resolution_tag = field_tag{282u};
-constexpr auto y_resolution_tag = field_tag{283u};
-constexpr auto planar_configuration_tag = field_tag{284u};
-constexpr auto page_name_tag = field_tag{285u};
-constexpr auto x_position_tag = field_tag{286u};
-constexpr auto y_position_tag = field_tag{287u};
-constexpr auto free_offsets_tag = field_tag{288u};
-constexpr auto free_byte_counts_tag = field_tag{289u};
-constexpr auto gray_response_unit_tag = field_tag{290u};
-constexpr auto gray_response_curve_tag = field_tag{291u};
-constexpr auto t4_options_tag = field_tag{292u};
-constexpr auto t6_options_tag = field_tag{293u};
-constexpr auto resolution_unit_tag = field_tag{296u};
-constexpr auto page_number_tag = field_tag{297u};
-constexpr auto software_tag = field_tag{305u};
-constexpr auto date_time_tag = field_tag{306u};
-constexpr auto artist_tag = field_tag{315u};
-constexpr auto host_computer_tag = field_tag{316u};
-constexpr auto color_map_tag = field_tag{320u};
-constexpr auto tile_width_tag = field_tag{322u};
-constexpr auto tile_length_tag = field_tag{323u};
-constexpr auto tile_offsets_tag = field_tag{324u};
-constexpr auto tile_byte_counts_tag = field_tag{325u};
-constexpr auto sub_ifds_tag = field_tag{330u};
-constexpr auto extra_samples_tag = field_tag{338u};
-constexpr auto copyright_tag = field_tag{33432u};
-
 field_value bits_per_sample_value_default(const field_value_map& fields)
 {
     return short_array(get_samples_per_pixel(fields), 1u);
@@ -573,71 +524,6 @@ const field_definition_map& get_definitions()
         {y_resolution_tag, {"YResolution", rational_field_bit}},
     };
     return definitions;
-}
-
-std::size_t get_compression(const field_value_map& fields)
-{
-    return get_unsigned_front(fields, compression_tag);
-}
-
-std::size_t get_image_length(const field_value_map& fields)
-{
-    return get_unsigned_front(fields, image_length_tag);
-}
-
-std::size_t get_image_width(const field_value_map& fields)
-{
-    return get_unsigned_front(fields, image_width_tag);
-}
-
-std::size_t get_samples_per_pixel(const field_value_map& fields)
-{
-    return get_unsigned_front(fields, samples_per_pixel_tag);
-}
-
-std::size_t get_rows_per_strip(const field_value_map& fields)
-{
-    return get_unsigned_front(fields, rows_per_strip_tag);
-}
-
-std::size_t get_orientation(const field_value_map& fields)
-{
-    return get_unsigned_front(fields, orientation_tag);
-}
-
-std::size_t get_photometric_interpretation(const field_value_map& fields)
-{
-    return get_unsigned_front(fields, photometric_interpretation_tag);
-}
-
-std::size_t get_planar_configuraion(const field_value_map& fields)
-{
-    return get_unsigned_front(fields, planar_configuration_tag);
-}
-
-std::size_t get_resolution_unit(const field_value_map& fields)
-{
-    return get_unsigned_front(fields, resolution_unit_tag);
-}
-
-std::size_t get_x_resolution(const field_value_map& fields)
-{
-    return get_unsigned_front(fields, x_resolution_tag);
-}
-
-std::size_t get_y_resolution(const field_value_map& fields)
-{
-    return get_unsigned_front(fields, y_resolution_tag);
-}
-
-std::size_t get_tile_length(const field_value_map& fields)
-{
-    return get_unsigned_front(fields, tile_length_tag);
-}
-
-std::size_t get_tile_width(const field_value_map& fields)
-{
-    return get_unsigned_front(fields, tile_width_tag);
 }
 
 std::size_t get_strip_byte_count(const field_value_map& fields, std::size_t index)
@@ -765,6 +651,8 @@ image read_image(std::istream& in, const field_value_map& fields)
                 std::memcpy(result.buffer.data() + offset, strip.data(), strip.size());
                 offset += strip.size();
                 break;
+            case 2u:
+            case 32773u:
             default:
                 throw std::invalid_argument(std::string("unable to decode compression " + std::to_string(compression)));
             }
