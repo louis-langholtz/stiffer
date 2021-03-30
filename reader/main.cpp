@@ -28,6 +28,19 @@ std::ostream& operator<< (std::ostream& os, const stiffer::srational& value)
     return os;
 }
 
+std::ostream& operator<< (std::ostream& os, stiffer::file_version value)
+{
+    switch (value) {
+    case stiffer::file_version::classic:
+        os << "classic";
+        return os;
+    case stiffer::file_version::bigtiff:
+        os << "bigtiff";
+        return os;
+    }
+    return os;
+}
+
 template <typename T>
 std::enable_if_t<std::is_enum_v<T>, std::ostream&> operator<< (std::ostream& os, const T& value)
 {
@@ -83,7 +96,7 @@ int main(int argc, const char * argv[]) {
             }
             const auto field_type = get_field_type(field.second);
             std::cout << ", type=" << to_underlying(field_type);
-            std::cout << "(" << stiffer::field_type_to_string(field_type) << ")";
+            std::cout << "(" << stiffer::to_string(field_type) << ")";
             std::cout << ", count=" << size(field.second);
             std::cout << ", value=";
             std::visit(overloaded{

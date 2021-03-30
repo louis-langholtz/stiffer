@@ -203,20 +203,7 @@ image_file_directory get_ifd(std::istream& in, std::size_t at, endian byte_order
 
 } // namespace
 
-std::ostream& operator<< (std::ostream& os, file_version value)
-{
-    switch (value) {
-    case file_version::classic:
-        os << "classic";
-        return os;
-    case file_version::bigtiff:
-        os << "bigtiff";
-        return os;
-    }
-    return os;
-}
-
-const char* field_type_to_string(field_type value)
+const char* to_string(field_type value)
 {
     switch (value) {
     case byte_field_type: return "byte";
@@ -349,16 +336,16 @@ void decompress_packed_bits()
 std::vector<std::size_t> as_size_array(const field_value& value)
 {
     if (const auto values = std::get_if<long8_array>(&value); values) {
-        return to_size_array(*values);
+        return to_vector<std::size_t>(*values);
     }
     if (const auto values = std::get_if<long_array>(&value); values) {
-        return to_size_array(*values);
+        return to_vector<std::size_t>(*values);
     }
     if (const auto values = std::get_if<short_array>(&value); values) {
-        return to_size_array(*values);
+        return to_vector<std::size_t>(*values);
     }
     if (const auto values = std::get_if<byte_array>(&value); values) {
-        return to_size_array(*values);
+        return to_vector<std::size_t>(*values);
     }
     throw std::invalid_argument("not an unsigned integral array type");
 }
@@ -662,4 +649,4 @@ image read_image(std::istream& in, const field_value_map& fields)
     return image{};
 }
 
-} // namespace stiffer::version_6
+} // namespace stiffer::v6

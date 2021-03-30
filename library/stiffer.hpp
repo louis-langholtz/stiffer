@@ -22,6 +22,7 @@
 #include "image_buffer.hpp"
 #include "rational.hpp"
 #include "srational.hpp"
+#include "file_version.hpp"
 
 /* The classes below are exported */
 #pragma GCC visibility push(default)
@@ -36,19 +37,21 @@ constexpr std::underlying_type_t<T> to_underlying(T value) noexcept
     return static_cast<std::underlying_type_t<T>>(value);
 }
 
+template <typename ReturnType, typename GivenType>
+auto to_vector(const std::vector<GivenType>& values) -> decltype(ReturnType{GivenType{}}, std::vector<ReturnType>{})
+{
+    std::vector<ReturnType> result;
+    result.reserve(size(values));
+    result.assign(begin(values), end(values));
+    return result;
+}
+
 template <typename T>
 constexpr std::enable_if_t<std::is_enum_v<T>, T> byte_swap(T value)
 {
     using type = decltype(value);
     return static_cast<type>(byte_swap(static_cast<std::underlying_type_t<type>>(value)));
 }
-
-enum class file_version {
-    classic,
-    bigtiff,
-};
-
-std::ostream& operator<< (std::ostream& os, file_version value);
 
 enum class field_tag: std::uint16_t {};
 
@@ -133,15 +136,6 @@ template <> struct to_field_type<long8_array> { static const auto value = long8_
 template <> struct to_field_type<slong8_array> { static const auto value = slong8_field_type; };
 template <> struct to_field_type<ifd8_array> { static const auto value = ifd8_field_type; };
 
-template <typename T>
-std::enable_if_t<std::is_unsigned_v<T>, std::vector<std::size_t>> to_size_array(const std::vector<T>& values)
-{
-    std::vector<std::size_t> result;
-    result.reserve(values.size());
-    result.assign(values.begin(), values.end());
-    return result;
-}
-
 using field_value = std::variant<
     unrecognized_field_value,
     byte_array,
@@ -214,7 +208,7 @@ constexpr std::size_t size(const field_value& value)
     return 0u;
 }
 
-const char* field_type_to_string(field_type value);
+const char* to_string(field_type value);
 
 constexpr std::size_t field_type_to_bytesize(field_type value)
 {
@@ -329,8 +323,6 @@ struct image_file_directory
 };
 
 void decompress_packed_bits();
-
-std::vector<std::size_t> as_size_array(const field_value& value);
 
 } // namespace stiffer
 
@@ -515,7 +507,7 @@ undefined_array read_tile(std::istream& is, const field_value_map& fields, std::
 
 image read_image(std::istream& in, const field_value_map& fields);
 
-} // namespace stiffer::version_6
+} // namespace stiffer::v6
 
 #pragma GCC visibility pop
 #endif
