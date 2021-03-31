@@ -8,6 +8,8 @@
 #include "image_buffer.hpp"
 #include "stiffer.hpp"
 
+#include <numeric>
+
 namespace stiffer {
 
 image_buffer::image_buffer(std::size_t width, std::size_t height, const std::vector<std::size_t>& bits_per_sample) :
@@ -26,10 +28,7 @@ void image_buffer::resize(std::size_t width, std::size_t height, const std::vect
 
 std::size_t get_bytes_per_pixel(const std::vector<std::size_t>& bits_per_sample)
 {
-    auto total_bits = std::size_t(0);
-    for (const auto& element: bits_per_sample) {
-        total_bits += element;
-    }
+    const auto total_bits = std::accumulate(begin(bits_per_sample), end(bits_per_sample), 0u);
     return (total_bits + 7u) / 8u;
 }
 

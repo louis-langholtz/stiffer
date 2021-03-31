@@ -9,6 +9,7 @@
 #define STIFFER_V6_HPP
 
 #include "stiffer.hpp"
+#include "image.hpp"
 
 namespace stiffer::v6 {
 

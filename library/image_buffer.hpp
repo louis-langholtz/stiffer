@@ -56,13 +56,6 @@ public:
 
 std::size_t get_bytes_per_pixel(const std::vector<std::size_t>& bits_per_sample);
 
-struct image {
-    image_buffer buffer;
-    std::size_t photometric_interpretation;
-    std::size_t orientation;
-    std::size_t planar_configuration;
-};
-
 } // namespace stiffer
 
 #endif /* STIFFER_IMAGE_BUFFER_HPP */

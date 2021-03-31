@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "endian.hpp"
-#include "image_buffer.hpp"
 #include "rational.hpp"
 #include "srational.hpp"
 #include "file_version.hpp"
