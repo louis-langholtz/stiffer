@@ -210,7 +210,7 @@ constexpr std::size_t size(const field_value& value)
 
 const char* to_string(field_type value);
 
-constexpr std::size_t field_type_to_bytesize(field_type value)
+constexpr std::size_t to_bytesize(field_type value)
 {
     switch (value) {
     case byte_field_type: return 1u;

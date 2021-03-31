@@ -94,7 +94,7 @@ std::enable_if_t<std::is_unsigned_v<U>, T> get(U in, endian from_order, std::siz
 template <typename T>
 constexpr bool is_value_field(const T& field)
 {
-    return (field.count == 0u) || (field_type_to_bytesize(field.type) <= (sizeof(field.value_offset) / field.count));
+    return (field.count == 0u) || (to_bytesize(field.type) <= (sizeof(field.value_offset) / field.count));
 }
 
 template <typename T>
