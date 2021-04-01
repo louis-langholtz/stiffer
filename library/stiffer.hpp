@@ -323,6 +323,9 @@ struct image_file_directory
 
 void decompress_packed_bits();
 
+image_file_directory get_image_file_directory(std::istream& is, std::size_t at, endian byte_order,
+                                              file_version version);
+
 } // namespace stiffer
 
 namespace stiffer::classic {

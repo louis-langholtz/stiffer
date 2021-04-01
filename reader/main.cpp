@@ -31,13 +31,10 @@ std::ostream& operator<< (std::ostream& os, const stiffer::srational& value)
 
 std::ostream& operator<< (std::ostream& os, stiffer::file_version value)
 {
-    switch (value) {
-    case stiffer::file_version::classic:
-        os << "classic";
-        return os;
-    case stiffer::file_version::bigtiff:
-        os << "bigtiff";
-        return os;
+    if (const auto name = to_string(value); name && *name) {
+        os << name;
+    } else {
+        os << stiffer::to_underlying(value);
     }
     return os;
 }
@@ -85,9 +82,8 @@ int main(int argc, const char * argv[]) {
     std::cout << "native order is " << stiffer::endian::native << " endian order\n";
     std::cout << "first offset is " << file_context.first_ifd_offset << "\n";
     for (auto offset = file_context.first_ifd_offset; offset != 0u;) {
-        const auto ifd = (file_context.version == stiffer::file_version::classic)?
-            stiffer::classic::get_image_file_directory(in, offset, file_context.byte_order):
-            stiffer::bigtiff::get_image_file_directory(in, offset, file_context.byte_order);
+        const auto ifd = stiffer::get_image_file_directory(in, offset, file_context.byte_order,
+                                                           file_context.version);
         std::cout << "file has " << std::size(ifd.fields) << " fields\n";
         for (const auto& field: ifd.fields) {
             std::cout << "tag=" << stiffer::to_underlying(field.first);

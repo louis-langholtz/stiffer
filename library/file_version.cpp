@@ -6,3 +6,7 @@
 //
 
 #include "file_version.hpp"
+
+namespace stiffer {
+
+} // namespace stiffer

@@ -350,6 +350,14 @@ std::vector<std::size_t> as_size_array(const field_value& value)
     throw std::invalid_argument("not an unsigned integral array type");
 }
 
+image_file_directory get_image_file_directory(std::istream& in, std::size_t at, endian byte_order,
+                                              file_version version)
+{
+    return (version == stiffer::file_version::classic)?
+        stiffer::classic::get_image_file_directory(in, at, byte_order):
+        stiffer::bigtiff::get_image_file_directory(in, at, byte_order);
+}
+
 namespace classic {
 
 namespace {
