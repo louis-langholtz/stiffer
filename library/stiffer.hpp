@@ -45,13 +45,6 @@ auto to_vector(const std::vector<GivenType>& values) -> decltype(ReturnType{Give
     return result;
 }
 
-template <typename T>
-constexpr std::enable_if_t<std::is_enum_v<T>, T> byte_swap(T value)
-{
-    using type = decltype(value);
-    return static_cast<type>(byte_swap(static_cast<std::underlying_type_t<type>>(value)));
-}
-
 enum class field_tag: std::uint16_t {};
 
 template <int N>
@@ -229,16 +222,6 @@ constexpr std::size_t to_bytesize(field_type value)
     case ifd8_field_type: return 8u;
     }
     return 0u;
-}
-
-inline rational byte_swap(const rational& value)
-{
-    return rational{byte_swap(value.numerator), byte_swap(value.denominator)};
-}
-
-inline srational byte_swap(const srational& value)
-{
-    return srational{byte_swap(value.numerator), byte_swap(value.denominator)};
 }
 
 using field_value_map = std::map<field_tag, field_value>;

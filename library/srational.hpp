@@ -10,6 +10,8 @@
 
 #include <cstdint> // for std::uint32_t
 
+#include "byte_swap.hpp"
+
 namespace stiffer {
 
 struct srational {
@@ -26,6 +28,11 @@ constexpr bool operator==(const srational& lhs, const srational& rhs)
 constexpr bool operator!=(const srational& lhs, const srational& rhs)
 {
     return !(lhs == rhs);
+}
+
+constexpr srational byte_swap(const srational& value)
+{
+    return srational{byte_swap(value.numerator), byte_swap(value.denominator)};
 }
 
 } // namespace stiffer
