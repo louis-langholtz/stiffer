@@ -199,19 +199,60 @@ bool has_tiled_image(const field_value_map& fields)
     return bytes_found && offsets_found;
 }
 
+void unpack_bits(const undefined_element* &src, std::size_t &src_siz, std::uint8_t* &dst, std::size_t &dst_siz)
+{
+    const auto src_end = src + src_siz;
+    while (src < src_end) {
+        const auto n = int(std::int8_t(*src));
+        if (n >= 0) {
+            src += 1;
+            src_siz -= 1u;
+            const auto nbytes = std::size_t(n) + 1u;
+            if (nbytes > src_siz) {
+                throw std::invalid_argument(std::string("nbytes=") + std::to_string(nbytes) + ">" + std::to_string(src_siz) + " remaining src");
+            }
+            if (nbytes > dst_siz) {
+                throw std::invalid_argument(std::string("nbytes=") + std::to_string(nbytes) + ">" + std::to_string(dst_siz) + " remaining dst");
+            }
+            std::memcpy(dst, src, nbytes);
+            dst += nbytes;
+            dst_siz -= nbytes;
+            src += nbytes;
+            src_siz -= nbytes;
+        } else if (n != -128) {
+            src += 1;
+            src_siz -= 1u;
+            const auto next_byte = to_underlying(*src);
+            src += 1;
+            const auto nbytes = std::size_t(-n) + 1u;
+            if (nbytes > dst_siz) {
+                throw std::invalid_argument(std::string("nbytes=") + std::to_string(nbytes) + ">" + std::to_string(dst_siz) + " remaining dst");
+            }
+            for (auto i = std::size_t(0); i < nbytes; ++i) {
+                *(dst + i) = next_byte;
+            }
+            dst += nbytes;
+            dst_siz -= nbytes;
+        } else {
+            src += 1;
+            src_siz -= 1u;
+        }
+    }
+}
+
 image read_image(std::istream& in, const field_value_map& fields)
 {
     if (has_striped_image(fields)) {
         auto result = image{};
-        result.buffer.resize(get_image_width(fields),
-                             get_image_length(fields),
-                             as_size_array(get_bits_per_sample(fields)));
+        const auto width = get_image_width(fields);
+        const auto length = get_image_length(fields);
+        result.buffer.resize(width, length, as_size_array(get_bits_per_sample(fields)));
         result.photometric_interpretation = get_photometric_interpretation(fields);
         result.orientation = get_orientation(fields);
         result.planar_configuration = get_planar_configuraion(fields);
         const auto compression = get_compression(fields);
         const auto max = get_strips_per_image(fields);
-        std::size_t offset = 0;
+        auto offset = std::size_t(0);
         for (auto i = static_cast<std::size_t>(0); i < max; ++i) {
             const auto strip = read_strip(in, fields, i);
             switch (compression) {
@@ -219,8 +260,16 @@ image read_image(std::istream& in, const field_value_map& fields)
                 std::memcpy(result.buffer.data() + offset, strip.data(), strip.size());
                 offset += strip.size();
                 break;
+            case 32773u: {
+                auto dst_ptr = result.buffer.data() + offset;
+                auto dst_siz = result.buffer.size() - offset;
+                auto src_ptr = strip.data();
+                auto src_siz = size(strip);
+                unpack_bits(src_ptr, src_siz, dst_ptr, dst_siz);
+                offset = dst_ptr - result.buffer.data();
+                break;
+            }
             case 2u:
-            case 32773u:
             default:
                 throw std::invalid_argument(std::string("unable to decode compression " + std::to_string(compression)));
             }
