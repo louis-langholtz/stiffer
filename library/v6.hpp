@@ -78,7 +78,7 @@ constexpr auto copyright_tag = field_tag{33432u};
 
 const field_definition_map& get_definitions();
 
-inline std::size_t get_unsigned_front(const field_value_map& fields, field_tag tag)
+inline uintmax_t get_unsigned_front(const field_value_map& fields, field_tag tag)
 {
     return get_unsigned_front(get(fields, tag, get_definitions()));
 }
@@ -89,72 +89,72 @@ inline std::size_t get_unsigned_front(const field_value_map& fields, field_tag t
 ///   an array of type BYTE. Each scan line (row) is padded to the next BYTE boundary."
 /// @note 2 means: "CCITT Group 3 1-Dimensional Modified Huffman run length encoding."
 /// @note 32773 means: "PackBits compression, a simple byte-oriented run length scheme."
-inline std::size_t get_compression(const field_value_map& fields)
+inline uintmax_t get_compression(const field_value_map& fields)
 {
     return get_unsigned_front(fields, compression_tag);
 }
 
-inline std::size_t get_image_length(const field_value_map& fields)
+inline uintmax_t get_image_length(const field_value_map& fields)
 {
     return get_unsigned_front(fields, image_length_tag);
 }
 
-inline std::size_t get_image_width(const field_value_map& fields)
+inline uintmax_t get_image_width(const field_value_map& fields)
 {
     return get_unsigned_front(fields, image_width_tag);
 }
 
-inline std::size_t get_samples_per_pixel(const field_value_map& fields)
+inline uintmax_t get_samples_per_pixel(const field_value_map& fields)
 {
     return get_unsigned_front(fields, samples_per_pixel_tag);
 }
 
-inline std::size_t get_rows_per_strip(const field_value_map& fields)
+inline uintmax_t get_rows_per_strip(const field_value_map& fields)
 {
     return get_unsigned_front(fields, rows_per_strip_tag);
 }
 
-inline std::size_t get_orientation(const field_value_map& fields)
+inline uintmax_t get_orientation(const field_value_map& fields)
 {
     return get_unsigned_front(fields, orientation_tag);
 }
 
-inline std::size_t get_photometric_interpretation(const field_value_map& fields)
+inline uintmax_t get_photometric_interpretation(const field_value_map& fields)
 {
     return get_unsigned_front(fields, photometric_interpretation_tag);
 }
 
-inline std::size_t get_planar_configuraion(const field_value_map& fields)
+inline uintmax_t get_planar_configuraion(const field_value_map& fields)
 {
     return get_unsigned_front(fields, planar_configuration_tag);
 }
 
-inline std::size_t get_resolution_unit(const field_value_map& fields)
+inline uintmax_t get_resolution_unit(const field_value_map& fields)
 {
     return get_unsigned_front(fields, resolution_unit_tag);
 }
 
-inline std::size_t get_x_resolution(const field_value_map& fields)
+inline uintmax_t get_x_resolution(const field_value_map& fields)
 {
     return get_unsigned_front(fields, x_resolution_tag);
 }
 
-inline std::size_t get_y_resolution(const field_value_map& fields)
+inline uintmax_t get_y_resolution(const field_value_map& fields)
 {
     return get_unsigned_front(fields, y_resolution_tag);
 }
 
-inline std::size_t get_tile_length(const field_value_map& fields)
+inline uintmax_t get_tile_length(const field_value_map& fields)
 {
     return get_unsigned_front(fields, tile_length_tag);
 }
 
-inline std::size_t get_tile_width(const field_value_map& fields)
+inline uintmax_t get_tile_width(const field_value_map& fields)
 {
     return get_unsigned_front(fields, tile_width_tag);
 }
 
-inline std::size_t get_strips_per_image(const field_value_map& fields)
+inline uintmax_t get_strips_per_image(const field_value_map& fields)
 {
     const auto rows_per_strip = get_rows_per_strip(fields);
     return (get_image_length(fields) + rows_per_strip - 1u) / rows_per_strip;
@@ -163,13 +163,13 @@ inline std::size_t get_strips_per_image(const field_value_map& fields)
 field_value get_bits_per_sample(const field_value_map& fields);
 
 bool has_striped_image(const field_value_map& fields);
-std::size_t get_strip_byte_count(const field_value_map& fields, std::size_t index);
-std::size_t get_strip_offset(const field_value_map& fields, std::size_t index);
+uintmax_t get_strip_byte_count(const field_value_map& fields, std::size_t index);
+uintmax_t get_strip_offset(const field_value_map& fields, std::size_t index);
 undefined_array read_strip(std::istream& is, const field_value_map& fields, std::size_t index);
 
 bool has_tiled_image(const field_value_map& fields);
-std::size_t get_tile_byte_count(const field_value_map& fields, std::size_t index);
-std::size_t get_tile_offset(const field_value_map& fields, std::size_t index);
+uintmax_t get_tile_byte_count(const field_value_map& fields, std::size_t index);
+uintmax_t get_tile_offset(const field_value_map& fields, std::size_t index);
 undefined_array read_tile(std::istream& is, const field_value_map& fields, std::size_t index);
 
 image read_image(std::istream& in, const field_value_map& fields);

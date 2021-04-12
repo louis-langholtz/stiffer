@@ -148,7 +148,23 @@ using field_value = std::variant<
     ifd8_array
 >;
 
-std::vector<std::size_t> as_size_array(const field_value& value);
+template <typename T>
+std::enable_if_t<std::is_unsigned_v<T>, std::vector<T>> to_vector(const field_value& value)
+{
+    if (const auto values = std::get_if<long8_array>(&value); values) {
+        return to_vector<T>(*values);
+    }
+    if (const auto values = std::get_if<long_array>(&value); values) {
+        return to_vector<T>(*values);
+    }
+    if (const auto values = std::get_if<short_array>(&value); values) {
+        return to_vector<T>(*values);
+    }
+    if (const auto values = std::get_if<byte_array>(&value); values) {
+        return to_vector<T>(*values);
+    }
+    throw std::invalid_argument("not an integral array type");
+}
 
 constexpr field_type get_field_type(const field_value& value)
 {
@@ -287,7 +303,10 @@ field_value get(const field_value_map& fields, field_tag tag, const field_defini
     return get(fields, tag, get(definitions, tag, fields));
 }
 
-std::size_t get_unsigned_front(const field_value& result);
+using intmax_t = std::int64_t;
+using uintmax_t = std::uint64_t;
+
+uintmax_t get_unsigned_front(const field_value& result);
 
 struct file_context
 {

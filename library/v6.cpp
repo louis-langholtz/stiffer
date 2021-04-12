@@ -5,6 +5,9 @@
 //  Created by Louis D. Langholtz on 3/30/21.
 //
 
+#include <sstream> // for std::ostringstream
+#include <stdexcept> // for std::invalid_argument etc.
+
 #include "v6.hpp"
 
 namespace stiffer::v6 {
@@ -94,7 +97,7 @@ const field_definition_map& get_definitions()
     return definitions;
 }
 
-std::size_t get_strip_byte_count(const field_value_map& fields, std::size_t index)
+uintmax_t get_strip_byte_count(const field_value_map& fields, std::size_t index)
 {
     const auto found = find(fields, strip_byte_counts_tag);
     if (!found) {
@@ -107,7 +110,7 @@ std::size_t get_strip_byte_count(const field_value_map& fields, std::size_t inde
     throw std::invalid_argument("strip byte counts entry type not long nor short");
 }
 
-std::size_t get_strip_offset(const field_value_map& fields, std::size_t index)
+uintmax_t get_strip_offset(const field_value_map& fields, std::size_t index)
 {
     const auto found = find(fields, strip_offsets_tag);
     if (!found) {
@@ -120,7 +123,7 @@ std::size_t get_strip_offset(const field_value_map& fields, std::size_t index)
     throw std::invalid_argument("strip offsets entry type not long nor short");
 }
 
-std::size_t get_tile_byte_count(const field_value_map& fields, std::size_t index)
+uintmax_t get_tile_byte_count(const field_value_map& fields, std::size_t index)
 {
     const auto found = find(fields, tile_byte_counts_tag);
     if (!found) {
@@ -133,7 +136,7 @@ std::size_t get_tile_byte_count(const field_value_map& fields, std::size_t index
     throw std::invalid_argument("tile byte counts entry type not long nor short");
 }
 
-std::size_t get_tile_offset(const field_value_map& fields, std::size_t index)
+uintmax_t get_tile_offset(const field_value_map& fields, std::size_t index)
 {
     const auto found = find(fields, tile_offsets_tag);
     if (!found) {
@@ -199,20 +202,32 @@ bool has_tiled_image(const field_value_map& fields)
     return bytes_found && offsets_found;
 }
 
-void unpack_bits(const undefined_element* &src, std::size_t &src_siz, std::uint8_t* &dst, std::size_t &dst_siz)
+std::ptrdiff_t unpack_bits(const undefined_element* src, std::size_t src_siz,
+                           std::uint8_t* dst, std::size_t dst_siz)
 {
+    const auto src_beg = src;
     const auto src_end = src + src_siz;
+    const auto dst_beg = dst;
     while (src < src_end) {
+        const auto n_index = src - src_beg;
         const auto n = int(std::int8_t(*src));
+        ++src;
+        --src_siz;
         if (n >= 0) {
-            src += 1;
-            src_siz -= 1u;
             const auto nbytes = std::size_t(n) + 1u;
             if (nbytes > src_siz) {
-                throw std::invalid_argument(std::string("nbytes=") + std::to_string(nbytes) + ">" + std::to_string(src_siz) + " remaining src");
+                std::ostringstream os;
+                os << "source byte " << n_index << ", says to copy the next ";
+                os << nbytes << " bytes literally except only ";
+                os << src_siz << " source bytes remain";
+                throw std::invalid_argument(os.str());
             }
             if (nbytes > dst_siz) {
-                throw std::invalid_argument(std::string("nbytes=") + std::to_string(nbytes) + ">" + std::to_string(dst_siz) + " remaining dst");
+                std::ostringstream os;
+                os << "source byte " << n_index << ", says to copy the next ";
+                os << nbytes << " bytes literally except only ";
+                os << dst_siz << " bytes space left in destination buffer";
+                throw std::invalid_argument(os.str());
             }
             std::memcpy(dst, src, nbytes);
             dst += nbytes;
@@ -220,24 +235,25 @@ void unpack_bits(const undefined_element* &src, std::size_t &src_siz, std::uint8
             src += nbytes;
             src_siz -= nbytes;
         } else if (n != -128) {
-            src += 1;
-            src_siz -= 1u;
-            const auto next_byte = to_underlying(*src);
-            src += 1;
             const auto nbytes = std::size_t(-n) + 1u;
             if (nbytes > dst_siz) {
-                throw std::invalid_argument(std::string("nbytes=") + std::to_string(nbytes) + ">" + std::to_string(dst_siz) + " remaining dst");
+                std::ostringstream os;
+                os << "source byte " << n_index << ", says to copy the next byte ";
+                os << nbytes << " times except only ";
+                os << dst_siz << " bytes space left in destination buffer";
+                throw std::invalid_argument(os.str());
             }
+            const auto next_byte = to_underlying(*src);
+            ++src;
+            --src_siz;
             for (auto i = std::size_t(0); i < nbytes; ++i) {
                 *(dst + i) = next_byte;
             }
             dst += nbytes;
             dst_siz -= nbytes;
-        } else {
-            src += 1;
-            src_siz -= 1u;
         }
     }
+    return dst - dst_beg;
 }
 
 image read_image(std::istream& in, const field_value_map& fields)
@@ -246,29 +262,23 @@ image read_image(std::istream& in, const field_value_map& fields)
         auto result = image{};
         const auto width = get_image_width(fields);
         const auto length = get_image_length(fields);
-        result.buffer.resize(width, length, as_size_array(get_bits_per_sample(fields)));
+        result.buffer.resize(width, length, to_vector<std::size_t>(get_bits_per_sample(fields)));
         result.photometric_interpretation = get_photometric_interpretation(fields);
         result.orientation = get_orientation(fields);
         result.planar_configuration = get_planar_configuraion(fields);
         const auto compression = get_compression(fields);
         const auto max = get_strips_per_image(fields);
         auto offset = std::size_t(0);
-        for (auto i = static_cast<std::size_t>(0); i < max; ++i) {
+        for (auto i = static_cast<decltype(get_strips_per_image(fields))>(0); i < max; ++i) {
             const auto strip = read_strip(in, fields, i);
             switch (compression) {
             case 1u:
-                std::memcpy(result.buffer.data() + offset, strip.data(), strip.size());
+                std::memcpy(result.buffer.data() + offset, data(strip), size(strip));
                 offset += strip.size();
                 break;
-            case 32773u: {
-                auto dst_ptr = result.buffer.data() + offset;
-                auto dst_siz = result.buffer.size() - offset;
-                auto src_ptr = strip.data();
-                auto src_siz = size(strip);
-                unpack_bits(src_ptr, src_siz, dst_ptr, dst_siz);
-                offset = dst_ptr - result.buffer.data();
+            case 32773u:
+                offset += unpack_bits(data(strip), size(strip), result.buffer.data() + offset, result.buffer.size() - offset);
                 break;
-            }
             case 2u:
             default:
                 throw std::invalid_argument(std::string("unable to decode compression " + std::to_string(compression)));

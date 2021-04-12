@@ -153,7 +153,7 @@ field_value get(const field_definition_map& definitions, field_tag tag,
     return {};
 }
 
-std::size_t get_unsigned_front(const field_value& result)
+uintmax_t get_unsigned_front(const field_value& result)
 {
     if (result == field_value{}) {
         throw std::invalid_argument("no field value");
@@ -176,23 +176,6 @@ void decompress_packed_bits()
     for (;;) {
 
     }
-}
-
-std::vector<std::size_t> as_size_array(const field_value& value)
-{
-    if (const auto values = std::get_if<long8_array>(&value); values) {
-        return to_vector<std::size_t>(*values);
-    }
-    if (const auto values = std::get_if<long_array>(&value); values) {
-        return to_vector<std::size_t>(*values);
-    }
-    if (const auto values = std::get_if<short_array>(&value); values) {
-        return to_vector<std::size_t>(*values);
-    }
-    if (const auto values = std::get_if<byte_array>(&value); values) {
-        return to_vector<std::size_t>(*values);
-    }
-    throw std::invalid_argument("not an unsigned integral array type");
 }
 
 image_file_directory get_image_file_directory(std::istream& in, std::size_t at, endian byte_order,
