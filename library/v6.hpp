@@ -83,15 +83,20 @@ inline uintmax_t get_unsigned_front(const field_value_map& fields, field_tag tag
     return get_unsigned_front(get(fields, tag, get_definitions()));
 }
 
+enum class compression: uintmax_t;
+constexpr auto no_compression = compression{1u};
+constexpr auto ccitt34_compression = compression{2u};
+constexpr auto packbits_compression = compression{32773u};
+
 /// Gets the compression type used for image data.
 /// @note 1 means: "No compression, but pack data into bytes as tightly as possible, leaving
 ///   no unused bits (except at the end of a row). The component values are stored as
 ///   an array of type BYTE. Each scan line (row) is padded to the next BYTE boundary."
 /// @note 2 means: "CCITT Group 3 1-Dimensional Modified Huffman run length encoding."
 /// @note 32773 means: "PackBits compression, a simple byte-oriented run length scheme."
-inline uintmax_t get_compression(const field_value_map& fields)
+inline compression get_compression(const field_value_map& fields)
 {
-    return get_unsigned_front(fields, compression_tag);
+    return compression{get_unsigned_front(fields, compression_tag)};
 }
 
 inline uintmax_t get_image_length(const field_value_map& fields)

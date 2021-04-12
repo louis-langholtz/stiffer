@@ -272,16 +272,16 @@ image read_image(std::istream& in, const field_value_map& fields)
         for (auto i = static_cast<decltype(get_strips_per_image(fields))>(0); i < max; ++i) {
             const auto strip = read_strip(in, fields, i);
             switch (compression) {
-            case 1u:
+            case no_compression:
                 std::memcpy(result.buffer.data() + offset, data(strip), size(strip));
                 offset += strip.size();
                 break;
-            case 32773u:
+            case packbits_compression:
                 offset += unpack_bits(data(strip), size(strip), result.buffer.data() + offset, result.buffer.size() - offset);
                 break;
-            case 2u:
+            case ccitt34_compression:
             default:
-                throw std::invalid_argument(std::string("unable to decode compression " + std::to_string(compression)));
+                throw std::invalid_argument(std::string("unable to decode compression " + std::to_string(to_underlying(compression))));
             }
         }
         return result;
