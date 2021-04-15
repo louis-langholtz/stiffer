@@ -8,6 +8,9 @@
 #ifndef STIFFER_DETAILS_HPP
 #define STIFFER_DETAILS_HPP
 
+#include <algorithm> // for std::sort
+#include <cstring> // for std::memcpy
+
 #include "stiffer.hpp"
 
 namespace stiffer::details {
