@@ -5,6 +5,7 @@
 //  Created by Louis D. Langholtz on 3/30/21.
 //
 
+#include <cstring> // for std::memcpy
 #include <sstream> // for std::ostringstream
 #include <stdexcept> // for std::invalid_argument etc.
 
