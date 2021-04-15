@@ -263,8 +263,8 @@ image read_image(std::istream& in, const field_value_map& fields)
         const auto width = get_image_width(fields);
         const auto length = get_image_length(fields);
         result.buffer.resize(width, length, to_vector<std::size_t>(get_bits_per_sample(fields)));
-        result.photometric_interpretation = get_photometric_interpretation(fields);
-        result.orientation = get_orientation(fields);
+        result.photometric_interpretation = to_underlying(get_photometric_interpretation(fields));
+        result.orientation = to_underlying(get_orientation(fields));
         result.planar_configuration = get_planar_configuraion(fields);
         const auto compression = get_compression(fields);
         const auto max = get_strips_per_image(fields);
@@ -279,7 +279,7 @@ image read_image(std::istream& in, const field_value_map& fields)
             case packbits_compression:
                 offset += unpack_bits(data(strip), size(strip), result.buffer.data() + offset, result.buffer.size() - offset);
                 break;
-            case ccitt34_compression:
+            case ccitt_huffman_compression:
             default:
                 throw std::invalid_argument(std::string("unable to decode compression " + std::to_string(to_underlying(compression))));
             }

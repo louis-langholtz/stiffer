@@ -83,10 +83,29 @@ inline uintmax_t get_unsigned_front(const field_value_map& fields, field_tag tag
     return get_unsigned_front(get(fields, tag, get_definitions()));
 }
 
-enum class compression: uintmax_t;
-constexpr auto no_compression = compression{1u};
-constexpr auto ccitt34_compression = compression{2u};
-constexpr auto packbits_compression = compression{32773u};
+/// Type of compression.
+/// @note This is an integral strong type that's an "open" enumeration. Enumerates are
+///   described externally to this scoped enumeration.
+/// @note "Data compression applies only to raster image data. All other TIFF fields
+///   are unaffected."
+/// @note "Baseline TIFF readers must handle all three compression schemes". These are:
+///   no-compression, CCITT Huffman compression, and PackBits compression.
+enum class compression_t: uintmax_t;
+
+/// No compression.
+/// @note "No compression, but pack data into bytes as tightly as possible, leaving no
+///   unused bits (except at the end of a row). The component values are stored as an
+///   array of type BYTE. Each scan line (row) is padded to the next BYTE boundary."
+constexpr auto no_compression = compression_t{1u};
+
+/// CCITT Huffman compression.
+/// @note "CCITT Group 3 1-Dimensional Modified Huffman run length encoding... BitsPerSample
+///   must be 1, since this type of compression is defined only for bilevel images".
+constexpr auto ccitt_huffman_compression = compression_t{2u};
+
+/// Packbits compression.
+/// @note "PackBits compression, a simple byte-oriented run length scheme".
+constexpr auto packbits_compression = compression_t{32773u};
 
 /// Gets the compression type used for image data.
 /// @note 1 means: "No compression, but pack data into bytes as tightly as possible, leaving
@@ -94,9 +113,9 @@ constexpr auto packbits_compression = compression{32773u};
 ///   an array of type BYTE. Each scan line (row) is padded to the next BYTE boundary."
 /// @note 2 means: "CCITT Group 3 1-Dimensional Modified Huffman run length encoding."
 /// @note 32773 means: "PackBits compression, a simple byte-oriented run length scheme."
-inline compression get_compression(const field_value_map& fields)
+inline compression_t get_compression(const field_value_map& fields)
 {
-    return compression{get_unsigned_front(fields, compression_tag)};
+    return compression_t{get_unsigned_front(fields, compression_tag)};
 }
 
 inline uintmax_t get_image_length(const field_value_map& fields)
@@ -119,14 +138,26 @@ inline uintmax_t get_rows_per_strip(const field_value_map& fields)
     return get_unsigned_front(fields, rows_per_strip_tag);
 }
 
-inline uintmax_t get_orientation(const field_value_map& fields)
+enum class orientation_t: uintmax_t;
+constexpr auto top_left_orientation = orientation_t{1u};
+constexpr auto top_right_orientation = orientation_t{2u};
+constexpr auto bottom_right_orientation = orientation_t{3u};
+constexpr auto bottom_left_orientation = orientation_t{4u};
+constexpr auto left_top_orientation = orientation_t{5u};
+constexpr auto right_top_orientation = orientation_t{6u};
+constexpr auto right_bottom_orientation = orientation_t{7u};
+constexpr auto left_bottom_orientation = orientation_t{8u};
+
+inline orientation_t get_orientation(const field_value_map& fields)
 {
-    return get_unsigned_front(fields, orientation_tag);
+    return orientation_t{get_unsigned_front(fields, orientation_tag)};
 }
 
-inline uintmax_t get_photometric_interpretation(const field_value_map& fields)
+enum class photometric_interpretation_t: uintmax_t;
+
+inline photometric_interpretation_t get_photometric_interpretation(const field_value_map& fields)
 {
-    return get_unsigned_front(fields, photometric_interpretation_tag);
+    return photometric_interpretation_t{get_unsigned_front(fields, photometric_interpretation_tag)};
 }
 
 inline uintmax_t get_planar_configuraion(const field_value_map& fields)
@@ -134,9 +165,39 @@ inline uintmax_t get_planar_configuraion(const field_value_map& fields)
     return get_unsigned_front(fields, planar_configuration_tag);
 }
 
-inline uintmax_t get_resolution_unit(const field_value_map& fields)
+inline uintmax_t get_cell_length(const field_value_map& fields)
 {
-    return get_unsigned_front(fields, resolution_unit_tag);
+    return get_unsigned_front(fields, cell_length_tag);
+}
+
+inline uintmax_t get_cell_width(const field_value_map& fields)
+{
+    return get_unsigned_front(fields, cell_width_tag);
+}
+
+enum class fill_order_t: uintmax_t;
+
+/// Most significant bit fill order.
+/// @note This is the default fill order.
+constexpr auto msb_fill_order = fill_order_t{1u};
+
+/// Least significant bit fill order.
+/// @note Support for this fill order "is not required in a Baseline TIFF compliant reader".
+constexpr auto lsb_fill_order = fill_order_t{2u};
+
+inline fill_order_t get_fill_order(const field_value_map& fields)
+{
+    return fill_order_t{get_unsigned_front(fields, fill_order_tag)};
+}
+
+enum class resolution_unit_t: uintmax_t;
+constexpr auto no_resolution_unit = resolution_unit_t{1u};
+constexpr auto inch_resolution_unit = resolution_unit_t{2u};
+constexpr auto centimeter_resolution_unit = resolution_unit_t{3u};
+
+inline resolution_unit_t get_resolution_unit(const field_value_map& fields)
+{
+    return resolution_unit_t{get_unsigned_front(fields, resolution_unit_tag)};
 }
 
 inline uintmax_t get_x_resolution(const field_value_map& fields)

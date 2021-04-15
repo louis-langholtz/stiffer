@@ -9,14 +9,15 @@
 #define STIFFER_IMAGE_HPP
 
 #include "image_buffer.hpp"
+#include "stiffer.hpp" // for stiffer::uintmax_t
 
 namespace stiffer {
 
 struct image {
     image_buffer buffer;
-    std::size_t photometric_interpretation;
-    std::size_t orientation;
-    std::size_t planar_configuration;
+    uintmax_t photometric_interpretation;
+    uintmax_t orientation;
+    uintmax_t planar_configuration;
 };
 
 } // namespace stiffer
