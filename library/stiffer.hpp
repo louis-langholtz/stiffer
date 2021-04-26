@@ -13,6 +13,8 @@
 #include <memory>
 #include <istream>
 #include <ostream>
+#include <optional>
+#include <ostream>
 #include <string>
 #include <type_traits>
 #include <variant>
@@ -52,6 +54,29 @@ constexpr std::enable_if_t<N >= 0 && N < std::numeric_limits<std::underlying_typ
 to_tag()
 {
     return static_cast<field_tag>(N);
+}
+
+enum class endian_key_t: std::uint16_t;
+
+constexpr auto little_endian_key = endian_key_t{0x4949u};
+constexpr auto big_endian_key = endian_key_t{0x4D4Du};
+
+constexpr std::optional<endian> find_endian(endian_key_t byte_order)
+{
+    switch (byte_order) {
+    case little_endian_key: return {endian::little};
+    case big_endian_key: return {endian::big};
+    }
+    return {};
+}
+
+constexpr endian_key_t get_endian_key(endian value)
+{
+    switch (value) {
+    case endian::little: return little_endian_key;
+    case endian::big: break;
+    }
+    return big_endian_key;
 }
 
 enum class field_type: std::uint16_t {};
@@ -307,6 +332,9 @@ using intmax_t = std::int64_t;
 using uintmax_t = std::uint64_t;
 
 uintmax_t get_unsigned_front(const field_value& result);
+
+file_version to_file_version(std::uint16_t value);
+std::uint16_t to_file_version_key(file_version value);
 
 struct file_context
 {

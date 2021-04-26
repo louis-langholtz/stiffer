@@ -29,6 +29,20 @@ static_assert(sizeof(field_entry) == 20u, "field_entry size must be 20 bytes");
 
 #pragma pack(pop)
 
+constexpr bool is_value_field(const field_entry& field)
+{
+    const auto count = field.count;
+    return (count == 0u)
+        || (to_bytesize(field.type) <= sizeof(field_entry::value_offset) / count);
+}
+
+constexpr bool is_value_field(const field_value& field)
+{
+    const auto count = size(field);
+    return (count == 0u)
+        || (to_bytesize(get_field_type(field)) <= sizeof(field_entry::value_offset) / count);
+}
+
 using field_entries = std::vector<field_entry>;
 
 constexpr field_entry byte_swap(const field_entry& value)

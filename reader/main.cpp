@@ -116,20 +116,20 @@ int main(int argc, const char * argv[]) {
         usage(argv[0]);
     }
     for (const auto& filename: filenames) {
-        std::fstream in(filename, std::ios_base::binary|std::ios_base::in);
-        if (!in.is_open()) {
+        std::fstream fstream(filename, std::ios_base::binary|std::ios_base::in);
+        if (!fstream.is_open()) {
             std::cerr << "Couldn't open file " << filename;
             std::cerr << " within " << std::filesystem::current_path();
             std::cerr << ".\n";
             return 1;
         }
-        const auto file_context = stiffer::get_file_context(in);
+        const auto file_context = stiffer::get_file_context(fstream);
         std::cout << "File is version " << file_context.version << "\n";
         std::cout << " file stored in " << file_context.byte_order << " endian order\n";
         std::cout << "native order is " << stiffer::endian::native << " endian order\n";
         std::cout << "first offset is " << file_context.first_ifd_offset << "\n";
         for (auto offset = file_context.first_ifd_offset; offset != 0u;) {
-            const auto ifd = stiffer::get_image_file_directory(in, offset, file_context.byte_order,
+            const auto ifd = stiffer::get_image_file_directory(fstream, offset, file_context.byte_order,
                                                                file_context.version);
             std::cout << "file has " << std::size(ifd.fields) << " fields\n";
             for (const auto& field: ifd.fields) {
@@ -155,14 +155,14 @@ int main(int argc, const char * argv[]) {
                     const auto max = stiffer::v6::get_strips_per_image(ifd.fields);
                     for (auto i = static_cast<std::size_t>(0); i < max; ++i) {
                         std::cout << "Strip " << i << ": ";
-                        const auto strip = stiffer::v6::read_strip(in, ifd.fields, i);
+                        const auto strip = stiffer::v6::read_strip(fstream, ifd.fields, i);
                         std::cout << strip;
                         std::cout << "\n";
                     }
                 }
             }
             try {
-                const auto image = stiffer::v6::read_image(in, ifd.fields);
+                const auto image = stiffer::v6::read_image(fstream, ifd.fields);
                 std::cout << "image width = " << image.buffer.get_width() << "\n";
                 std::cout << "image length = " << image.buffer.get_height() << "\n";
                 std::cout << "image orientation = " << image.orientation << "\n";

@@ -12,7 +12,6 @@
 #include <algorithm>
 #include <exception>
 #include <ios>
-#include <optional>
 
 #include "stiffer.hpp"
 #include "classic.hpp"
@@ -23,30 +22,28 @@ namespace stiffer {
 
 namespace {
 
-constexpr auto little_endian_key = std::uint16_t{0x4949u};
-constexpr auto big_endian_key = std::uint16_t{0x4D4Du};
 constexpr auto classic_version_number = std::uint16_t{42};
 constexpr auto bigtiff_version_number = std::uint16_t{43};
 
-constexpr std::optional<endian> find_endian(std::uint16_t byte_order)
-{
-    switch (byte_order) {
-    case little_endian_key: return {endian::little};
-    case big_endian_key: return {endian::big};
-    }
-    return {};
-}
+} // namespace
 
-file_version to_file_version(std::uint16_t number)
+file_version to_file_version(std::uint16_t value)
 {
-    switch (number) {
+    switch (value) {
     case classic_version_number: return file_version::classic;
     case bigtiff_version_number: return file_version::bigtiff;
     }
     throw std::invalid_argument("unrecognized version number");
 }
 
-} // namespace
+std::uint16_t to_file_version_key(file_version value)
+{
+    switch (value) {
+    case file_version::bigtiff: return bigtiff_version_number;
+    case file_version::classic: break;
+    }
+    return classic_version_number;
+}
 
 const char* to_string(field_type value)
 {
@@ -83,49 +80,49 @@ void add_defaults(field_value_map& fields, const field_definition_map& definitio
     }
 }
 
-file_context get_file_context(std::istream& is)
+file_context get_file_context(std::istream& stream)
 {
-    is.seekg(0);
-    if (!is.good()) {
+    stream.seekg(0);
+    if (!stream.good()) {
         throw std::runtime_error("can't seek to position 0");
     }
-    std::uint16_t byte_order{};
-    is.read(reinterpret_cast<char*>(&byte_order), sizeof(byte_order));
-    if (!is.good()) {
+    auto byte_order = endian_key_t{};
+    stream.read(reinterpret_cast<char*>(&byte_order), sizeof(byte_order));
+    if (!stream.good()) {
         throw std::runtime_error("can't read byte order");
     }
     const auto endian_found = find_endian(byte_order);
     if (!endian_found) {
         throw std::invalid_argument("unrecognized byte order");
     }
-    const auto version_number = details::read<std::uint16_t>(is, *endian_found, false);
-    if (!is.good()) {
+    const auto version_number = details::read<std::uint16_t>(stream, *endian_found, false);
+    if (!stream.good()) {
         throw std::runtime_error("can't read version number");
     }
     const auto fv = to_file_version(version_number);
     switch (fv) {
     case file_version::classic: {
-        const auto offset = details::read<classic::file_offset>(is, *endian_found, false);
-        if (!is.good()) {
+        const auto offset = details::read<classic::file_offset>(stream, *endian_found, false);
+        if (!stream.good()) {
             throw std::runtime_error("can't read initial offset");
         }
         return {offset, *endian_found, fv};
     }
     case file_version::bigtiff: {
-        const auto offsets_bytesize = details::read<std::uint16_t>(is, *endian_found, false);
-        if (!is.good()) {
+        const auto offsets_bytesize = details::read<std::uint16_t>(stream, *endian_found, false);
+        if (!stream.good()) {
             throw std::runtime_error("can't read offsets bytesize");
         }
         if (offsets_bytesize != 8u) {
             throw std::invalid_argument(std::string("unexpected offset bytesize of ")
                                         + std::to_string(offsets_bytesize));
         }
-        details::read<std::uint16_t>(is, *endian_found, false);
-        if (!is.good()) {
+        details::read<std::uint16_t>(stream, *endian_found, false);
+        if (!stream.good()) {
             throw std::runtime_error("can't read header padding");
         }
-        const auto offset = details::read<bigtiff::file_offset>(is, *endian_found, false);
-        if (!is.good()) {
+        const auto offset = details::read<bigtiff::file_offset>(stream, *endian_found, false);
+        if (!stream.good()) {
             throw std::runtime_error("can't read initial offset");
         }
         return {offset, *endian_found, fv};

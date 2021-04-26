@@ -10,21 +10,30 @@
 
 #include <algorithm> // for std::sort
 #include <cstring> // for std::memcpy
+#include <istream>
+#include <ostream>
 
 #include "stiffer.hpp"
 
 namespace stiffer::details {
 
 template <typename T>
-std::enable_if_t<std::is_trivially_copyable_v<T>, T> read(std::istream& in, endian from_order,
-                                                          bool throw_on_fail = true)
+std::enable_if_t<std::is_trivially_copyable_v<T>, T> read(std::istream& stream)
 {
     auto element = T{};
-    in.read(reinterpret_cast<char*>(&element), sizeof(element));
-    if (throw_on_fail && !in.good()) {
+    stream.read(reinterpret_cast<char*>(&element), sizeof(element));
+    return element;
+}
+
+template <typename T>
+std::enable_if_t<std::is_trivially_copyable_v<T>, T> read(std::istream& stream, endian from_order,
+                                                          bool throw_on_fail = true)
+{
+    const auto value = read<T>(stream);
+    if (throw_on_fail && !stream.good()) {
         throw std::runtime_error("can't read data");
     }
-    return from_endian(element, from_order);
+    return from_endian(value, from_order);
 }
 
 template <typename T>
@@ -44,9 +53,9 @@ T read(std::istream& in, endian from_order, std::size_t count)
 }
 
 template <typename T>
-constexpr bool is_value_field(const T& field)
+std::enable_if_t<std::is_trivially_copyable_v<T>, void> write(std::ostream& stream, const T& value)
 {
-    return (field.count == 0u) || (to_bytesize(field.type) <= (sizeof(field.value_offset) / field.count));
+    stream.write(reinterpret_cast<const char*>(&value), sizeof(value));
 }
 
 template <typename T, typename U>
