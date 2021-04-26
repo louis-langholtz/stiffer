@@ -86,8 +86,7 @@ file_context get_file_context(std::istream& stream)
     if (!stream.good()) {
         throw std::runtime_error("can't seek to position 0");
     }
-    auto byte_order = endian_key_t{};
-    stream.read(reinterpret_cast<char*>(&byte_order), sizeof(byte_order));
+    const auto byte_order = details::read<endian_key_t>(stream);
     if (!stream.good()) {
         throw std::runtime_error("can't read byte order");
     }
@@ -95,21 +94,21 @@ file_context get_file_context(std::istream& stream)
     if (!endian_found) {
         throw std::invalid_argument("unrecognized byte order");
     }
-    const auto version_number = details::read<std::uint16_t>(stream, *endian_found, false);
+    const auto version_number = from_endian(details::read<std::uint16_t>(stream), *endian_found);
     if (!stream.good()) {
         throw std::runtime_error("can't read version number");
     }
     const auto fv = to_file_version(version_number);
     switch (fv) {
     case file_version::classic: {
-        const auto offset = details::read<classic::file_offset>(stream, *endian_found, false);
+        const auto offset = from_endian(details::read<classic::file_offset>(stream), *endian_found);
         if (!stream.good()) {
             throw std::runtime_error("can't read initial offset");
         }
         return {offset, *endian_found, fv};
     }
     case file_version::bigtiff: {
-        const auto offsets_bytesize = details::read<std::uint16_t>(stream, *endian_found, false);
+        const auto offsets_bytesize = from_endian(details::read<std::uint16_t>(stream), *endian_found);
         if (!stream.good()) {
             throw std::runtime_error("can't read offsets bytesize");
         }
@@ -117,11 +116,11 @@ file_context get_file_context(std::istream& stream)
             throw std::invalid_argument(std::string("unexpected offset bytesize of ")
                                         + std::to_string(offsets_bytesize));
         }
-        details::read<std::uint16_t>(stream, *endian_found, false);
+        from_endian(details::read<std::uint16_t>(stream), *endian_found);
         if (!stream.good()) {
             throw std::runtime_error("can't read header padding");
         }
-        const auto offset = details::read<bigtiff::file_offset>(stream, *endian_found, false);
+        const auto offset = from_endian(details::read<bigtiff::file_offset>(stream), *endian_found);
         if (!stream.good()) {
             throw std::runtime_error("can't read initial offset");
         }
