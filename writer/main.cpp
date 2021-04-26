@@ -28,27 +28,25 @@ int main(int argc, const char * argv[]) {
     }
     constexpr auto byte_order = stiffer::endian::little;
     constexpr auto endian_key = get_endian_key(byte_order);
-    stream.write(reinterpret_cast<const char*>(&endian_key), sizeof(endian_key));
+    stiffer::write(stream, endian_key);
     if (!stream.good()) {
         throw std::runtime_error("can't write the endian key for the byte ordering of the file");
     }
     const auto version_key = to_endian(to_file_version_key(stiffer::file_version::classic), byte_order);
-    stream.write(reinterpret_cast<const char*>(&version_key), sizeof(version_key));
+    stiffer::write(stream, version_key);
     if (!stream.good()) {
         throw std::runtime_error("can't write the version key to the file");
     }
-    const auto file_offset = to_endian(static_cast<stiffer::classic::file_offset>(sizeof(stiffer::classic::file_offset) + 4u), byte_order);
-    stream.write(reinterpret_cast<const char*>(&file_offset), sizeof(file_offset));
+    const auto pos = sizeof(stiffer::classic::file_offset) + sizeof(endian_key) + sizeof(version_key);
+    const auto offset = to_endian(static_cast<stiffer::classic::file_offset>(pos), byte_order);
+    stiffer::write(stream, offset);
     if (!stream.good()) {
         throw std::runtime_error("can't write initial file offset");
     }
-    const auto directory_count = to_endian(stiffer::classic::directory_count{0}, byte_order);
-    stream.write(reinterpret_cast<const char*>(&directory_count), sizeof(directory_count));
-    if (!stream.good()) {
-        throw std::runtime_error("can't write directory count");
-    }
+    stiffer::field_value_map fields;
+    stiffer::classic::put(stream, fields, byte_order);
     const auto next_offset = to_endian(static_cast<stiffer::classic::file_offset>(0), byte_order);
-    stream.write(reinterpret_cast<const char*>(&next_offset), sizeof(next_offset));
+    stiffer::write(stream, next_offset);
     if (!stream.good()) {
         throw std::runtime_error("can't write next offset");
     }

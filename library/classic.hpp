@@ -57,6 +57,8 @@ constexpr field_entry byte_swap(const field_entry& value)
     };
 }
 
+std::size_t put(std::ostream& stream, const field_value_map& fields, endian to_order);
+
 } // stiffer::classic
 
 #endif /* STIFFER_CLASSIC_HPP */

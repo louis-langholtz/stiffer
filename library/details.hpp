@@ -17,20 +17,6 @@
 
 namespace stiffer::details {
 
-template <typename T>
-std::enable_if_t<std::is_trivially_copyable_v<T>, T> read(std::istream& stream)
-{
-    auto value = T{};
-    stream.read(reinterpret_cast<char*>(&value), sizeof(value));
-    return value;
-}
-
-template <typename T>
-std::enable_if_t<std::is_trivially_copyable_v<T>, void> write(std::ostream& stream, const T& value)
-{
-    stream.write(reinterpret_cast<const char*>(&value), sizeof(value));
-}
-
 /// Read function for reading a count of elements into a supporting type.
 /// @note A supporting type is one that provides a <code>reserve(std::size_t)</code> member
 ///   function, a type alias of <code>value_type</code>, and a <code>push_back(value_type)</code>
@@ -43,7 +29,7 @@ auto read(std::istream& stream, endian from_order, std::size_t count)
     T elements;
     elements.reserve(count);
     for (auto i = static_cast<decltype(count)>(0); i < count; ++i) {
-        const auto element = from_endian(read<element_type>(stream), from_order);
+        const auto element = from_endian(::stiffer::read<element_type>(stream), from_order);
         if (!stream.good()) {
             throw std::runtime_error(std::string("can't read data for element number ") + std::to_string(i));
         }
@@ -55,8 +41,13 @@ auto read(std::istream& stream, endian from_order, std::size_t count)
 template <typename T>
 void write_field_data(std::ostream& stream, const field_value& field, endian to_order)
 {
+    auto i = std::size_t(0);
     for (auto&& e: std::get<T>(field)) {
-        details::write(stream, to_endian(e, to_order));
+        write(stream, to_endian(e, to_order));
+        if (!stream.good()) {
+            throw std::runtime_error(std::string("can't write data for element number ") + std::to_string(i));
+        }
+        ++i;
     }
 }
 
@@ -174,12 +165,12 @@ image_file_directory get_ifd(std::istream& stream, std::size_t at, endian from_o
     if (!stream.good()) {
         throw std::runtime_error("can't seek to given offet");
     }
-    const auto num_fields = from_endian(read<directory_count>(stream), from_order);
+    const auto num_fields = from_endian(::stiffer::read<directory_count>(stream), from_order);
     if (!stream.good()) {
         throw std::runtime_error("can't read directory count");
     }
     auto fields = read<field_entries>(stream, from_order, num_fields);
-    const auto next_ifd_offset = read<file_offset>(stream);
+    const auto next_ifd_offset = from_endian(::stiffer::read<file_offset>(stream), from_order);
     if (!stream.good()) {
         throw std::runtime_error("can't read next image file directory offset");
     }
@@ -187,7 +178,7 @@ image_file_directory get_ifd(std::istream& stream, std::size_t at, endian from_o
     for (auto&& field: fields) {
         field_map[field.tag] = get_field_value(stream, field, from_order);
     }
-    return image_file_directory{field_map, from_endian(next_ifd_offset, from_order)};
+    return image_file_directory{field_map, next_ifd_offset};
 }
 
 } // namespace stiffer::details

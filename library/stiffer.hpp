@@ -47,6 +47,20 @@ auto to_vector(const std::vector<GivenType>& values) -> decltype(ReturnType{Give
     return result;
 }
 
+template <typename T>
+std::enable_if_t<std::is_trivially_copyable_v<T>, T> read(std::istream& stream)
+{
+    auto value = T{};
+    stream.read(reinterpret_cast<char*>(&value), sizeof(value));
+    return value;
+}
+
+template <typename T>
+std::enable_if_t<std::is_trivially_copyable_v<T>, void> write(std::ostream& stream, const T& value)
+{
+    stream.write(reinterpret_cast<const char*>(&value), sizeof(value));
+}
+
 enum class field_tag: std::uint16_t {};
 
 template <int N>
