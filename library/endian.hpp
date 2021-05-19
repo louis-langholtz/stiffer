@@ -78,6 +78,8 @@ T from_endian(T value, endian order)
     return (order == endian::big)? from_big_endian(value): from_little_endian(value);
 }
 
+endian get_native_endian_at_runtime() noexcept;
+
 } // namespace stiffer
 
 #pragma GCC visibility pop

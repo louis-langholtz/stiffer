@@ -14,6 +14,8 @@
 
 #include "../library/v6.hpp"
 
+namespace {
+
 // helper type for the visitor #4
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 // explicit deduction guide (not needed as of C++20)
@@ -83,6 +85,8 @@ std::ostream& operator<< (std::ostream& os, const std::vector<T>& values)
     std::exit(1);
 }
 
+} // namespace
+
 int main(int argc, const char * argv[]) {
     auto verbose = false;
     std::vector<std::string> filenames;
@@ -144,7 +148,7 @@ int main(int argc, const char * argv[]) {
                 std::cout << ", count=" << size(field.second);
                 std::cout << ", value=";
                 std::visit(overloaded{
-                    [](const stiffer::unrecognized_field_value& arg) {},
+                    [](const stiffer::unrecognized_field_value&) {},
                     [](const stiffer::ascii_array& arg) { std::cout << std::quoted(arg); },
                     [](const auto& arg) { std::cout << arg; }
                 }, field.second);

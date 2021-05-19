@@ -41,7 +41,7 @@ std::size_t put(std::ostream& stream, const field_value_map& fields, endian to_o
         throw std::invalid_argument("offset of next image location exceeds classic capacity");
     }
     const auto pos = stream.tellp();
-    if (pos > std::numeric_limits<file_offset>::max() - total_bytes) {
+    if (pos > static_cast<std::streamoff>(std::numeric_limits<file_offset>::max() - total_bytes)) {
         throw std::invalid_argument("stream position doesn't provide enough space for data");
     }
 

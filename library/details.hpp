@@ -76,7 +76,7 @@ field_value get_field_value(std::istream& stream, const T& field, endian from_or
 {
     if (!is_value_field(field)) {
         const auto offset = from_endian(field.value_offset, from_order);
-        stream.seekg(offset);
+        stream.seekg(static_cast<std::streamoff>(offset));
         if (!stream.good()) {
             throw std::runtime_error(std::string("can't seek to offet ")
                                      + std::to_string(offset));
@@ -161,7 +161,7 @@ template <typename directory_count, typename field_entries, typename file_offset
 image_file_directory get_ifd(std::istream& stream, std::size_t at, endian from_order)
 {
     field_value_map field_map;
-    stream.seekg(at);
+    stream.seekg(static_cast<std::streamoff>(at));
     if (!stream.good()) {
         throw std::runtime_error("can't seek to given offet");
     }

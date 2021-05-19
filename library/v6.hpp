@@ -234,6 +234,8 @@ uintmax_t get_strip_offset(const field_value_map& fields, std::size_t index);
 undefined_array read_strip(std::istream& is, const field_value_map& fields, std::size_t index);
 
 bool has_tiled_image(const field_value_map& fields);
+std::size_t unpack_bits(const undefined_element* src, std::size_t src_siz,
+                        std::uint8_t* dst, std::size_t dst_siz);
 uintmax_t get_tile_byte_count(const field_value_map& fields, std::size_t index);
 uintmax_t get_tile_offset(const field_value_map& fields, std::size_t index);
 undefined_array read_tile(std::istream& is, const field_value_map& fields, std::size_t index);

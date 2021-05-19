@@ -8,6 +8,7 @@
 #include <cstring> // for std::memcpy
 #include <sstream> // for std::ostringstream
 #include <stdexcept> // for std::invalid_argument etc.
+#include <type_traits> // for std::make_unsigned
 
 #include "v6.hpp"
 
@@ -28,7 +29,7 @@ field_value max_sample_value_default(const field_value_map& fields)
     if (const auto entries = std::get_if<short_array>(&bits_per_sample); entries) {
         auto result = short_array{};
         for (auto&& entry: *entries) {
-            result.push_back((0x2u << entry) - 1u);
+            result.push_back(static_cast<decltype(entry)>((0x2u << entry) - 1u));
         }
         return {result};
     }
@@ -161,11 +162,14 @@ undefined_array read_strip(std::istream& is, const field_value_map& fields, std:
     const auto byte_count = get_strip_byte_count(fields, index);
     const auto offset = get_strip_offset(fields, index);
     bytes.resize(byte_count);
-    is.seekg(offset);
+    if (offset > std::numeric_limits<std::streamoff>::max()) {
+        throw std::runtime_error("offset to large");
+    }
+    is.seekg(static_cast<std::streamoff>(offset));
     if (!is.good()) {
         throw std::runtime_error("can't seek to offset");
     }
-    is.read(reinterpret_cast<char*>(bytes.data()), bytes.size());
+    is.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
     if (!is.good()) {
         throw std::runtime_error("can't read data");
     }
@@ -177,12 +181,15 @@ undefined_array read_tile(std::istream& is, const field_value_map& fields, std::
     auto bytes = undefined_array{};
     const auto byte_count = get_tile_byte_count(fields, index);
     const auto offset = get_tile_offset(fields, index);
+    if (offset > std::numeric_limits<std::streamoff>::max()) {
+        throw std::runtime_error("offset to large");
+    }
     bytes.resize(byte_count);
-    is.seekg(offset);
+    is.seekg(static_cast<std::streamoff>(offset));
     if (!is.good()) {
         throw std::runtime_error("can't seek to offset");
     }
-    is.read(reinterpret_cast<char*>(bytes.data()), bytes.size());
+    is.read(reinterpret_cast<char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
     if (!is.good()) {
         throw std::runtime_error("can't read data");
     }
@@ -203,8 +210,8 @@ bool has_tiled_image(const field_value_map& fields)
     return bytes_found && offsets_found;
 }
 
-std::ptrdiff_t unpack_bits(const undefined_element* src, std::size_t src_siz,
-                           std::uint8_t* dst, std::size_t dst_siz)
+std::size_t unpack_bits(const undefined_element* src, std::size_t src_siz,
+                        std::uint8_t* dst, std::size_t dst_siz)
 {
     const auto src_beg = src;
     const auto src_end = src + src_siz;
@@ -254,7 +261,7 @@ std::ptrdiff_t unpack_bits(const undefined_element* src, std::size_t src_siz,
             dst_siz -= nbytes;
         }
     }
-    return dst - dst_beg;
+    return static_cast<std::size_t>(dst - dst_beg);
 }
 
 image read_image(std::istream& in, const field_value_map& fields)
