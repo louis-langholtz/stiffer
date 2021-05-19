@@ -72,6 +72,7 @@ option(STIFFER_BUILD_SHARED "Build project shared libraries." OFF)
 option(STIFFER_INSTALL "Enable installation of project libs, includes, and CMake scripts." OFF)
 option(STIFFER_INSTALL_DOC "Enable installation of project documentation." OFF)
 option(STIFFER_BUILD_READER "Build project reader console application." OFF)
+option(STIFFER_BUILD_WRITER "Build project writer console application." OFF)
 option(STIFFER_BUILD_UNIT_TESTS "Build project unit tests console application." OFF)
 
 set(LIB_INSTALL_DIR lib${LIB_SUFFIX})
@@ -92,10 +93,15 @@ endif()
 # The project library.
 add_subdirectory(library)
 
-# HelloWorld console example.
+# Reader console example.
 if(STIFFER_BUILD_READER)
   add_subdirectory(reader)
 endif(STIFFER_BUILD_READER)
+
+# Writer console example.
+if(STIFFER_BUILD_WRITER)
+  add_subdirectory(writer)
+endif(STIFFER_BUILD_WRITER)
 
 # Unit tests console application.
 if(STIFFER_BUILD_UNIT_TESTS)
@@ -105,7 +111,7 @@ if(STIFFER_BUILD_UNIT_TESTS)
   #   "Enable testing for current directory and below".
   enable_testing()
 
-  add_subdirectory(UnitTests)
+  add_subdirectory(tests)
 endif(STIFFER_BUILD_UNIT_TESTS)
 
 if(STIFFER_INSTALL_DOC)
